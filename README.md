@@ -26,8 +26,12 @@ Moreover, the number of points to be estimated is discrete, and so is the dimens
 effort is justifiable, and the benefit of a small but high accurate set of points preponderate against a dense but less precise 
 point cloud. For such specific applications, this tiny bundle adjustment library is developed.
 
-## Example
+## Field of application
+The library was developed within the international project [GeoMetre](https://www.ptb.de/empir2018/geometre/home/), a joint research project within the European Metrology Research Programme EMPIR (Grant Number: 18SIB01). The bundle adjustment was applied in the framework of reference point determination of laser telescopes used for satellite laser ranging (SLR).  
 
+Lösler, M., Eschelbach, C., Klügel, T., Riepl, S.: *ILRS Reference Point Determination using Close Range Photogrammetry.* Applied Sciences, 11(6), 2785, 2021. DOI: [10.3390/app11062785](https://doi.org/10.3390/app11062785)
+
+## Example
 The following [code snippet](https://github.com/applied-geodesy/bundle-adjustment/blob/main/JAICOV/src/org/applied_geodesy/adjustment/bundle/jaicov/JAiCov.java) demonstrates the use case of the library.
 
 ```java
