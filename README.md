@@ -27,7 +27,7 @@ effort is justifiable, and the benefit of a small but high accurate set of point
 point cloud. For such specific applications, this tiny bundle adjustment library is developed.
 
 ## Field of application
-The library was developed within the international project [GeoMetre](https://www.ptb.de/empir2018/geometre/home/), a joint research project within the European Metrology Research Programme EMPIR (Grant Number: 18SIB01). The bundle adjustment was applied in the framework of reference point determination of laser telescopes used for satellite laser ranging (SLR).  
+The library was developed within the international project [GeoMetre](https://www.ptb.de/empir2018/geometre/home/), a joint research project within the European Metrology Research Programme EMPIR (Grant Number: 18SIB01, Funding: [10.13039/100014132](https://doi.org/10.13039/100014132)). The bundle adjustment was applied in the framework of reference point determination of laser telescopes used for satellite laser ranging (SLR).  
 
 Lösler, M., Eschelbach, C., Klügel, T., Riepl, S.: *ILRS Reference Point Determination using Close Range Photogrammetry.* Applied Sciences, 11(6), 2785, 2021. DOI: [10.3390/app11062785](https://doi.org/10.3390/app11062785)
 
