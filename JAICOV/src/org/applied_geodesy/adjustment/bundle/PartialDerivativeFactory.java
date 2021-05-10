@@ -113,7 +113,7 @@ class PartialDerivativeFactory {
 		double cosKappa = Math.cos(kappa);
 		double sinKappa = Math.sin(kappa);
 
-		// Rotationsmatrix (Gl 2.30, S. 61)
+		// rotation matrix (eq 2.30, p. 61)
 		double r11 =  cosPhi * cosKappa;
 		double r12 = -cosPhi * sinKappa;
 		double r13 =  sinPhi;
@@ -303,7 +303,7 @@ class PartialDerivativeFactory {
 		double cosKappa = Math.cos(kappa);
 		double sinKappa = Math.sin(kappa);
 
-		// Rotationsmatrix (Gl 2.30, S. 61)
+		// rotation matrix (eq 2.30, p. 61)
 		double r11 =  cosPhi * cosKappa;
 		double r12 = -cosPhi * sinKappa;
 		double r13 =  sinPhi;
@@ -362,7 +362,7 @@ class PartialDerivativeFactory {
 		List<Integer> columns = new ArrayList<Integer>();
 		int column = -1;
 
-		// Object point coordinates
+		// object point coordinates
 		column = objectCoordinate.getX().getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
