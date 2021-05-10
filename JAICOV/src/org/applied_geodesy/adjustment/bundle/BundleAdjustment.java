@@ -58,22 +58,40 @@ import no.uib.cipr.matrix.UpperSymmPackMatrix;
 import no.uib.cipr.matrix.Vector;
 
 public class BundleAdjustment {
+	public enum MatrixInversion {
+		NONE,
+		FULL,
+		REDUCED
+	};
+	
+	private class DispersionMatrixExportProperties {
+		private String exportPathAndFileName;
+		private boolean includeDatumConditions = Boolean.FALSE;
+		
+		DispersionMatrixExportProperties(String exportPathAndFileName, boolean includeDatumConditions) {
+			this.exportPathAndFileName  = exportPathAndFileName;
+			this.includeDatumConditions = includeDatumConditions;
+		}
+	}
+	
 	private final PropertyChangeSupport change = new PropertyChangeSupport(this);
 	private EstimationStateType currentEstimationStatus = EstimationStateType.BUSY;
 	private EstimationType estimationType = EstimationType.L2NORM;
-	private String coVarExportPathAndFileName = null;
+	private DispersionMatrixExportProperties dispersionMatrixExportProperties = null;
 	
 	private static double SQRT_EPS = Math.sqrt(Constant.EPS);
 	private int maximalNumberOfIterations = DefaultValue.getMaximalNumberOfIterations(),
 			iterationStep                 = 0,
 			numberOfUnknownParameters     = 0,
-			numberOfObservations          = 0;
+			numberOfObservations          = 0,
+			numberOfInteriorOrientationParameters = 0;
 
 	private boolean interrupt                    = false,
 			applyAposterioriVarianceOfUnitWeight = true,
 			useCentroidedCoordinates             = true,
-			calculateStochasticParameters        = false,
-			invertNormalEquationMatrix           = true;
+			calculateStochasticParameters        = false;
+	
+	private MatrixInversion invertNormalEquationMatrix = MatrixInversion.FULL;
 
 	private double maxDx    = Double.MIN_VALUE,
 			omega           = 0.0,
@@ -86,6 +104,7 @@ public class BundleAdjustment {
 
 	private RankDefect rankDefect = new RankDefect();
 
+	private List<Camera> cameras = new ArrayList<Camera>();
 	private List<ObservationParameter<?>> observations = new ArrayList<ObservationParameter<?>>();
 	private List<UnknownParameter<?>> unknownParameters = new ArrayList<UnknownParameter<?>>();
 	private Map<UnknownParameter<?>, LinkedHashSet<ObservationParameter<?>>> observationsOfUnknownParameters = new LinkedHashMap<UnknownParameter<?>, LinkedHashSet<ObservationParameter<?>>>();
@@ -121,7 +140,7 @@ public class BundleAdjustment {
 				}
 			}
 
-			if (cntX == cntY && cntX == cntZ && cntY == cntZ) {
+			if (cntX == cntY && cntX == cntZ && cntY == cntZ && cntX > 0) {
 				x0 /= cntX;
 				y0 /= cntY;
 				z0 /= cntZ;
@@ -130,7 +149,7 @@ public class BundleAdjustment {
 				this.centroid.getZ().setValue(z0);
 			}
 			else 
-				throw new UnsupportedOperationException(this.getClass().getSimpleName() +" Error, un-equal number of coordinate components [" + cntX + ", " + cntY + ", " + cntZ + "]");
+				throw new UnsupportedOperationException(this.getClass().getSimpleName() +" Error, the numbers of coordinate components are un-equal or zero [" + cntX + ", " + cntY + ", " + cntZ + "]");
 		}
 		
 		double sign = invert ? 1.0 : -1.0;
@@ -163,10 +182,7 @@ public class BundleAdjustment {
 	public EstimationStateType estimateModel() {
 		this.currentEstimationStatus = EstimationStateType.BUSY;
 		this.change.firePropertyChange(this.currentEstimationStatus.name(), false, true);
-		
-		if (this.useCentroidedCoordinates)
-			this.centroidCoordinates(false);
-		
+
 		this.maxDx = Double.MIN_VALUE;
 		this.currentMaxAbsDx = this.maxDx;
 
@@ -175,10 +191,12 @@ public class BundleAdjustment {
 
 		if (this.maximalNumberOfIterations == 0)
 			estimateCompleteModel = isEstimated = true;
-		
+
 		this.sigma2apriori = this.sigma2apriori > 0 ? this.sigma2apriori : 1.0;
 
-		this.detectRankDefect();
+		this.prepareUnknwonParameters();
+		if (this.useCentroidedCoordinates)
+			this.centroidCoordinates(false);
 		
 		try {
 			// Reset aller Iterationseinstellungen
@@ -216,14 +234,23 @@ public class BundleAdjustment {
 					if (estimateCompleteModel) {
 						this.calculateStochasticParameters = estimateCompleteModel;
 
-						// Wenn UT gewaehlt, wird Qxx seperat aus den Einzelloesungen bestimmt
-						if (this.invertNormalEquationMatrix) {
+						if (this.invertNormalEquationMatrix != MatrixInversion.NONE) {
 							this.currentEstimationStatus = EstimationStateType.INVERT_NORMAL_EQUATION_MATRIX;
 							this.change.firePropertyChange(this.currentEstimationStatus.name(), false, true);
 						}
-
+						
 						// In-Situ Invertierung der NGL: N <-- Qxx, n <-- dx 
-						MathExtension.solve(N, n, this.invertNormalEquationMatrix);
+						if (this.invertNormalEquationMatrix == MatrixInversion.REDUCED) {
+							int numRows = this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 + this.rankDefect.getDefect();
+							// reduziere Gleichungssystem
+							this.reduceNormalEquationMatrix(neq);
+							// In-Situ Invertierung der NGL: N <-- Qxx, n <-- dx 
+							MathExtension.solve(N, n, numRows, Boolean.TRUE);
+						}
+						else {
+							MathExtension.solve(N, n, this.invertNormalEquationMatrix == MatrixInversion.FULL);
+						}
+
 						this.applyPrecondition(neq.getPreconditioner(), N);
 						this.Qxx = N;
 
@@ -339,7 +366,144 @@ public class BundleAdjustment {
 		}
 	}
 
-	private void addDatumCondition(UpperSymmPackMatrix N) {
+//	private void addDatumConditionColumns(UpperSymmPackMatrix N) {
+//		// center of mass
+//		double x0 = 0, y0 = 0, z0 = 0;
+//		int count = 0;
+//		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
+//			if (objectCoordinate.isDatum()) {
+//				x0 += objectCoordinate.getX().getValue();
+//				y0 += objectCoordinate.getY().getValue();
+//				z0 += objectCoordinate.getZ().getValue();
+//				count++;
+//			}
+//		}
+//
+//		if (count < 3)
+//			throw new IllegalArgumentException(this.getClass() + " Error, not enought object points to realise the frame datum!");
+//
+//		x0 = x0 / (double)count;
+//		y0 = y0 / (double)count;
+//		z0 = z0 / (double)count;
+//
+//		int defectSize = this.rankDefect.getDefect();
+//		int row = N.numRows() - defectSize;
+//
+//		// Position in condition matrix
+//		int defectRow = 0;
+//		int tx   = this.rankDefect.estimateTranslationX() ? defectRow++ : -1;
+//		int ty   = this.rankDefect.estimateTranslationY() ? defectRow++ : -1;
+//		int tz   = this.rankDefect.estimateTranslationZ() ? defectRow++ : -1;
+//		int rx   = this.rankDefect.estimateRotationX()    ? defectRow++ : -1;
+//		int ry   = this.rankDefect.estimateRotationY()    ? defectRow++ : -1;
+//		int rz   = this.rankDefect.estimateRotationZ()    ? defectRow++ : -1;
+//		int mxyz = this.rankDefect.estimateScale()        ? defectRow++ : -1;
+//
+//		// Sum of squared row
+//		double normColumn[] = new double[defectSize];
+//
+//		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
+//			if (!objectCoordinate.isDatum())
+//				continue;
+//
+//			int columnX = objectCoordinate.getX().getColumn();
+//			int columnY = objectCoordinate.getY().getColumn();
+//			int columnZ = objectCoordinate.getZ().getColumn();
+//
+//			double x = objectCoordinate.getX().getValue() - x0;
+//			double y = objectCoordinate.getY().getValue() - y0;
+//			double z = objectCoordinate.getZ().getValue() - z0;
+//
+//			if (tx >= 0) {
+//				N.set(columnX, row + tx, 1.0);
+//
+//				normColumn[tx] += 1.0; 
+//			}
+//
+//			if (ty >= 0) {
+//				N.set(columnY, row + ty, 1.0);
+//
+//				normColumn[ty] += 1.0; 
+//			}
+//
+//			if (tz >= 0) {
+//				N.set(columnZ, row + tz, 1.0);
+//
+//				normColumn[tz] += 1.0; 
+//			}
+//
+//			if (rx >= 0) {
+//				N.set(columnY, row + rx,  z );
+//				N.set(columnZ, row + rx, -y );
+//
+//				normColumn[rx] += z*z + y*y;
+//			}
+//
+//			if (ry >= 0) {
+//				N.set(columnX, row + ry, -z );
+//				N.set(columnZ, row + ry,  x );
+//
+//				normColumn[ry] += z*z + x*x;
+//			}
+//
+//			if (rz >= 0) {
+//				N.set(columnX, row + rz,  y );
+//				N.set(columnY, row + rz, -x );	
+//
+//				normColumn[rz] += x*x + y*y;
+//			}
+//
+//			if (mxyz >= 0) {
+//				N.set(columnX, row+mxyz, x );
+//				N.set(columnY, row+mxyz, y );
+//				N.set(columnZ, row+mxyz, z );
+//
+//				normColumn[mxyz] += x*x + y*y + z*z;
+//			}
+//		}
+//
+//		// Normieren der Spalten
+//		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
+//			if (!objectCoordinate.isDatum())
+//				continue;
+//
+//			int columnX = objectCoordinate.getX().getColumn();
+//			int columnY = objectCoordinate.getY().getColumn();
+//			int columnZ = objectCoordinate.getZ().getColumn();
+//
+//			if (tx >= 0)
+//				N.set(columnX, row + tx, N.get(columnX, row + tx) / Math.sqrt(normColumn[tx]));
+//
+//			if (ty >= 0)
+//				N.set(columnY, row + ty, N.get(columnY, row + ty) / Math.sqrt(normColumn[ty]));
+//
+//			if (tz >= 0)
+//				N.set(columnZ, row + tz, N.get(columnZ, row + tz) / Math.sqrt(normColumn[tz]));
+//
+//			if (rx >= 0) {
+//				N.set(columnY, row + rx, N.get(columnY, row + rx) / Math.sqrt(normColumn[rx]) );
+//				N.set(columnZ, row + rx, N.get(columnZ, row + rx) / Math.sqrt(normColumn[rx]) );
+//			}
+//
+//			if (ry >= 0) {
+//				N.set(columnX, row + ry, N.get(columnX, row + ry) / Math.sqrt(normColumn[ry]) );
+//				N.set(columnZ, row + ry, N.get(columnZ, row + ry) / Math.sqrt(normColumn[ry]) );
+//			}
+//
+//			if (rz >= 0) {
+//				N.set(columnX, row + rz, N.get(columnX, row + rz) / Math.sqrt(normColumn[rz]) );
+//				N.set(columnY, row + rz, N.get(columnY, row + rz) / Math.sqrt(normColumn[rz]) );	
+//			}
+//
+//			if (mxyz >= 0) {
+//				N.set(columnX, row + mxyz, N.get(columnX, row + mxyz) / Math.sqrt(normColumn[mxyz]) );
+//				N.set(columnY, row + mxyz, N.get(columnY, row + mxyz) / Math.sqrt(normColumn[mxyz]) );
+//				N.set(columnZ, row + mxyz, N.get(columnZ, row + mxyz) / Math.sqrt(normColumn[mxyz]) );
+//			}
+//		}
+//	}
+
+	private void addDatumConditionRows(UpperSymmPackMatrix N) {
 		// center of mass
 		double x0 = 0, y0 = 0, z0 = 0;
 		int count = 0;
@@ -360,7 +524,8 @@ public class BundleAdjustment {
 		z0 = z0 / (double)count;
 
 		int defectSize = this.rankDefect.getDefect();
-		int row = N.numRows() - defectSize;
+		int row = 0;
+
 		// Position in condition matrix
 		int defectRow = 0;
 		int tx   = this.rankDefect.estimateTranslationX() ? defectRow++ : -1;
@@ -387,48 +552,48 @@ public class BundleAdjustment {
 			double z = objectCoordinate.getZ().getValue() - z0;
 
 			if (tx >= 0) {
-				N.set(columnX, row + tx, 1.0);
+				N.set(row + tx, columnX, 1.0);
 
 				normColumn[tx] += 1.0; 
 			}
 
 			if (ty >= 0) {
-				N.set(columnY, row + ty, 1.0);
+				N.set(row + ty, columnY, 1.0);
 
 				normColumn[ty] += 1.0; 
 			}
 
 			if (tz >= 0) {
-				N.set(columnZ, row + tz, 1.0);
+				N.set(row + tz, columnZ, 1.0);
 
 				normColumn[tz] += 1.0; 
 			}
 
 			if (rx >= 0) {
-				N.set(columnY, row + rx,  z );
-				N.set(columnZ, row + rx, -y );
+				N.set(row + rx, columnY,  z );
+				N.set(row + rx, columnZ, -y );
 
 				normColumn[rx] += z*z + y*y;
 			}
 
 			if (ry >= 0) {
-				N.set(columnX, row + ry, -z );
-				N.set(columnZ, row + ry,  x );
+				N.set(row + ry, columnX, -z );
+				N.set(row + ry, columnZ,  x );
 
 				normColumn[ry] += z*z + x*x;
 			}
 
 			if (rz >= 0) {
-				N.set(columnX, row + rz,  y );
-				N.set(columnY, row + rz, -x );	
+				N.set(row + rz, columnX,  y );
+				N.set(row + rz, columnY, -x );	
 
 				normColumn[rz] += x*x + y*y;
 			}
 
 			if (mxyz >= 0) {
-				N.set(columnX, row+mxyz, x );
-				N.set(columnY, row+mxyz, y );
-				N.set(columnZ, row+mxyz, z );
+				N.set(row+mxyz, columnX, x );
+				N.set(row+mxyz, columnY, y );
+				N.set(row+mxyz, columnZ, z );
 
 				normColumn[mxyz] += x*x + y*y + z*z;
 			}
@@ -444,33 +609,33 @@ public class BundleAdjustment {
 			int columnZ = objectCoordinate.getZ().getColumn();
 
 			if (tx >= 0)
-				N.set(columnX, row + tx, N.get(columnX, row + tx) / Math.sqrt(normColumn[tx]));
+				N.set(row + tx, columnX, N.get(row + tx, columnX) / Math.sqrt(normColumn[tx]));
 
 			if (ty >= 0)
-				N.set(columnY, row + ty, N.get(columnY, row + ty) / Math.sqrt(normColumn[ty]));
+				N.set(row + ty, columnY, N.get(row + ty, columnY) / Math.sqrt(normColumn[ty]));
 
 			if (tz >= 0)
-				N.set(columnZ, row + tz, N.get(columnZ, row + tz) / Math.sqrt(normColumn[tz]));
+				N.set(row + tz, columnZ, N.get(row + tz, columnZ) / Math.sqrt(normColumn[tz]));
 
 			if (rx >= 0) {
-				N.set(columnY, row + rx, N.get(columnY, row + rx) / Math.sqrt(normColumn[rx]) );
-				N.set(columnZ, row + rx, N.get(columnZ, row + rx) / Math.sqrt(normColumn[rx]) );
+				N.set(row + rx, columnY, N.get(row + rx, columnY) / Math.sqrt(normColumn[rx]) );
+				N.set(row + rx, columnZ, N.get(row + rx, columnZ) / Math.sqrt(normColumn[rx]) );
 			}
 
 			if (ry >= 0) {
-				N.set(columnX, row + ry, N.get(columnX, row + ry) / Math.sqrt(normColumn[ry]) );
-				N.set(columnZ, row + ry, N.get(columnZ, row + ry) / Math.sqrt(normColumn[ry]) );
+				N.set(row + ry, columnX, N.get(row + ry, columnX) / Math.sqrt(normColumn[ry]) );
+				N.set(row + ry, columnZ, N.get(row + ry, columnZ) / Math.sqrt(normColumn[ry]) );
 			}
 
 			if (rz >= 0) {
-				N.set(columnX, row + rz, N.get(columnX, row + rz) / Math.sqrt(normColumn[rz]) );
-				N.set(columnY, row + rz, N.get(columnY, row + rz) / Math.sqrt(normColumn[rz]) );	
+				N.set(row + rz, columnX, N.get(row + rz, columnX) / Math.sqrt(normColumn[rz]) );
+				N.set(row + rz, columnY, N.get(row + rz, columnY) / Math.sqrt(normColumn[rz]) );	
 			}
 
 			if (mxyz >= 0) {
-				N.set(columnX, row + mxyz, N.get(columnX, row + mxyz) / Math.sqrt(normColumn[mxyz]) );
-				N.set(columnY, row + mxyz, N.get(columnY, row + mxyz) / Math.sqrt(normColumn[mxyz]) );
-				N.set(columnZ, row + mxyz, N.get(columnZ, row + mxyz) / Math.sqrt(normColumn[mxyz]) );
+				N.set(row + mxyz, columnX, N.get(row + mxyz, columnX) / Math.sqrt(normColumn[mxyz]) );
+				N.set(row + mxyz, columnY, N.get(row + mxyz, columnY) / Math.sqrt(normColumn[mxyz]) );
+				N.set(row + mxyz, columnZ, N.get(row + mxyz, columnZ) / Math.sqrt(normColumn[mxyz]) );
 			}
 		}
 	}
@@ -494,7 +659,7 @@ public class BundleAdjustment {
 	}
 	
 	/**
-	 * @deprecated - Nur für Debuging
+	 * @deprecated - Debugging only
 	 * @param coordinates
 	 */
 	public void add(List<ObjectCoordinate> coordinates) {
@@ -504,76 +669,111 @@ public class BundleAdjustment {
 			this.addUnknownParameter(coordinate.getZ());
 		}
 	}
-
+	
 	public void add(Camera camera) {
-		// add parameters of interior orientation
-		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
-		for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation)
-			this.addUnknownParameter(unknownParameter);
-
-		for (Image image : camera) {
-			// add parameters of exterior orientation
-			ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
-			for (UnknownParameter<ExteriorOrientation> unknownParameter : exteriorOrientation)
-				this.addUnknownParameter(unknownParameter);
-
-			// add pixel coordinatens as observations
-			for (ImageCoordinate imageCoordinate : image) {
-				imageCoordinate.getX().setRow( this.numberOfObservations++ );
-				imageCoordinate.getY().setRow( this.numberOfObservations++ );
-
-				ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
-				this.objectCoordinates.add(objectCoordinate);
-
-				this.addUnknownParameter(objectCoordinate.getX());
-				this.addUnknownParameter(objectCoordinate.getY());
-				this.addUnknownParameter(objectCoordinate.getZ());
-
-				this.addObservation(objectCoordinate.getX(), imageCoordinate.getX());
-				this.addObservation(objectCoordinate.getX(), imageCoordinate.getY());
-
-				this.addObservation(objectCoordinate.getY(), imageCoordinate.getX());
-				this.addObservation(objectCoordinate.getY(), imageCoordinate.getY());
-
-				this.addObservation(objectCoordinate.getZ(), imageCoordinate.getX());
-				this.addObservation(objectCoordinate.getZ(), imageCoordinate.getY());
-
-				for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
-					this.addObservation(unknownParameter, imageCoordinate.getX());
-					this.addObservation(unknownParameter, imageCoordinate.getY());
-				}
-
-				for (UnknownParameter<ExteriorOrientation> unknownParameter : exteriorOrientation) {
-					this.addObservation(unknownParameter, imageCoordinate.getX());
-					this.addObservation(unknownParameter, imageCoordinate.getY());
-				}
-
-			}
-		}
+		this.cameras.add(camera);
 	}
 
 	public void add(ScaleBar scaleBar) {
 		this.scaleBars.add(scaleBar);
-		scaleBar.getLength().setRow( this.numberOfObservations++ );
+	}
+	
+	private void prepareUnknwonParameters() {
+		for (Camera camera : this.cameras) {
+			// add parameters of interior orientation
+			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
+			
+			for (Image image : camera) {
+				// add parameters of exterior orientation
+				ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
 
-		ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
-		ObjectCoordinate objectCoordinateB = scaleBar.getObjectCoordinateB();
+				// add pixel coordinatens as observations
+				for (ImageCoordinate imageCoordinate : image) {
+					imageCoordinate.getX().setRow( this.numberOfObservations++ );
+					imageCoordinate.getY().setRow( this.numberOfObservations++ );
 
-		this.addUnknownParameter(objectCoordinateA.getX());
-		this.addUnknownParameter(objectCoordinateA.getY());
-		this.addUnknownParameter(objectCoordinateA.getZ());
+					ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
+					this.objectCoordinates.add(objectCoordinate);
 
-		this.addUnknownParameter(objectCoordinateB.getX());
-		this.addUnknownParameter(objectCoordinateB.getY());
-		this.addUnknownParameter(objectCoordinateB.getZ());
+					this.addUnknownParameter(objectCoordinate.getX());
+					this.addUnknownParameter(objectCoordinate.getY());
+					this.addUnknownParameter(objectCoordinate.getZ());
 
-		this.addObservation(objectCoordinateA.getX(), scaleBar.getLength());
-		this.addObservation(objectCoordinateA.getY(), scaleBar.getLength());
-		this.addObservation(objectCoordinateA.getZ(), scaleBar.getLength());
+					this.addObservation(objectCoordinate.getX(), imageCoordinate.getX());
+					this.addObservation(objectCoordinate.getX(), imageCoordinate.getY());
 
-		this.addObservation(objectCoordinateB.getX(), scaleBar.getLength());
-		this.addObservation(objectCoordinateB.getY(), scaleBar.getLength());
-		this.addObservation(objectCoordinateB.getZ(), scaleBar.getLength());
+					this.addObservation(objectCoordinate.getY(), imageCoordinate.getX());
+					this.addObservation(objectCoordinate.getY(), imageCoordinate.getY());
+
+					this.addObservation(objectCoordinate.getZ(), imageCoordinate.getX());
+					this.addObservation(objectCoordinate.getZ(), imageCoordinate.getY());
+
+					for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
+						this.addObservation(unknownParameter, imageCoordinate.getX());
+						this.addObservation(unknownParameter, imageCoordinate.getY());
+					}
+
+					for (UnknownParameter<ExteriorOrientation> unknownParameter : exteriorOrientation) {
+						this.addObservation(unknownParameter, imageCoordinate.getX());
+						this.addObservation(unknownParameter, imageCoordinate.getY());
+					}
+
+				}
+			}
+		}
+		
+		for (Camera camera : this.cameras) {
+			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
+			for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
+				if (unknownParameter.getColumn() == -1) {
+					this.addUnknownParameter(unknownParameter);
+					if (unknownParameter.getColumn() != -1)	
+						this.numberOfInteriorOrientationParameters++;
+				}
+			}
+		}
+		
+		for (Camera camera : this.cameras) {
+			for (Image image : camera) {
+				// add parameters of exterior orientation
+				ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
+				for (UnknownParameter<ExteriorOrientation> unknownParameter : exteriorOrientation)
+					this.addUnknownParameter(unknownParameter);
+			}
+		}
+		
+		for (ScaleBar scaleBar : this.scaleBars) {
+			scaleBar.getLength().setRow( this.numberOfObservations++ );
+
+			ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
+			ObjectCoordinate objectCoordinateB = scaleBar.getObjectCoordinateB();
+
+			this.addUnknownParameter(objectCoordinateA.getX());
+			this.addUnknownParameter(objectCoordinateA.getY());
+			this.addUnknownParameter(objectCoordinateA.getZ());
+
+			this.addUnknownParameter(objectCoordinateB.getX());
+			this.addUnknownParameter(objectCoordinateB.getY());
+			this.addUnknownParameter(objectCoordinateB.getZ());
+
+			this.addObservation(objectCoordinateA.getX(), scaleBar.getLength());
+			this.addObservation(objectCoordinateA.getY(), scaleBar.getLength());
+			this.addObservation(objectCoordinateA.getZ(), scaleBar.getLength());
+
+			this.addObservation(objectCoordinateB.getX(), scaleBar.getLength());
+			this.addObservation(objectCoordinateB.getY(), scaleBar.getLength());
+			this.addObservation(objectCoordinateB.getZ(), scaleBar.getLength());
+		}
+		
+		this.detectRankDefect();
+
+		// re-number 
+		int numberOfDatumConditions = this.rankDefect.getDefect();
+		if (numberOfDatumConditions > 0) {
+			for (UnknownParameter<?> unknownParameter : this.unknownParameters) {
+				unknownParameter.setColumn(unknownParameter.getColumn() + numberOfDatumConditions);
+			}
+		}
 	}
 
 	/**
@@ -589,7 +789,7 @@ public class BundleAdjustment {
 			PartialDerivativeFactory.getPartialDerivative(this.sigma2apriori, N, n, observation);
 		}
 
-		this.addDatumCondition(N);
+		this.addDatumConditionRows(N);
 		
 //		// Vorkonditionierer == Wurzel der Hauptdiagonale
 		for (int column = 0; column < N.numColumns(); column++) {
@@ -602,78 +802,6 @@ public class BundleAdjustment {
 			n.zero();
 		return new NormalEquationSystem(N, n, V);
 	}
-	
-	
-		//
-//		UpperSymmPackMatrix N = new UpperSymmPackMatrix( this.numberOfUnknownParameters + this.rankDefect.getDefect());
-//		UpperSymmBandMatrix V = new UpperSymmBandMatrix( N.numRows(), 0 );
-//		DenseVector n = new DenseVector( N.numRows() );
-//		
-////		for (int uAT = 0; uAT < numberOfUnknownParameters; uAT++) {
-//		IntStream.range(0, numberOfUnknownParameters).parallel().forEach(new IntConsumer() {
-//			@Override
-//			public void accept(int uAT) {
-//				UnknownParameter<?> unknownParameterAT = unknownParameters.get(uAT);
-//				LinkedHashSet<ObservationParameter<?>> observationsAT = observationsOfUnknownParameters.get(unknownParameterAT);
-//
-//				int columnAT = unknownParameterAT.getColumn();
-//				Vector aTp = new SparseVector(numberOfObservations, observationsAT.size());
-//
-//				for (ObservationParameter<?> observationAT : observationsAT) {
-//					int rowAT = observationAT.getRow();
-//					double at = PartialDerivativeFactory.getPartialDerivative(observationAT, unknownParameterAT);
-//					double w  = PartialDerivativeFactory.getMisclosure(observationAT);			
-//					// row aT*p
-//					aTp.set(rowAT, aTp.get(rowAT) + at * sigma2apriori / observationAT.getVariance() );
-//					// right hand vector n
-//					n.set(columnAT, n.get(columnAT) + aTp.get(rowAT) * w);
-//					// main diag Nii == aTpa
-//					N.set(columnAT, columnAT, N.get(columnAT, columnAT) + aTp.get(rowAT) * at);
-//				}
-//
-//				IntStream.range(uAT + 1, numberOfUnknownParameters).parallel().forEach(new IntConsumer() {
-//					@Override
-//					public void accept(int uA) {
-//						//for (int uA = uAT + 1; uA < numberOfUnknownParameters; uA++) {
-//						UnknownParameter<?> unknownParameterA = unknownParameters.get(uA);
-//						LinkedHashSet<ObservationParameter<?>> observationsA = observationsOfUnknownParameters.get(unknownParameterA);
-//
-//						int columnA = unknownParameterA.getColumn();
-//
-//						for (ObservationParameter<?> observationA : observationsA) {
-//							int rowA = observationA.getRow();
-//							// skip zero multiplications
-//							if (aTp.get(rowA) == 0)
-//								continue;
-//
-//							double a = PartialDerivativeFactory.getPartialDerivative(observationA, unknownParameterA);
-//							// normal matrix: N = AT*P*A 
-//							N.set(columnAT, columnA, N.get(columnAT, columnA) + aTp.get(rowA) * a);
-//						}
-//					}	
-//				});
-//			}
-//		});
-//		
-//		this.addDatumCondition(N);
-//		
-////		// Vorkonditionierer == Wurzel der Hauptdiagonale von AT*P*A
-////		for (UnknownParameter<?> unknownParameter : this.unknownParameters) {
-////			int column = unknownParameter.getColumn();
-////			double value = N.get(column, column);
-////			V.set(column, column, 1.0 / Math.sqrt(value));
-////		}
-//		
-//		for (int column = 0; column < N.numColumns(); column++) {
-//			double value = N.get(column, column);
-//			V.set(column, column, value > Constant.EPS ? 1.0 / Math.sqrt(value) : 1.0);
-//		}
-//		
-//		
-//		if (this.estimationType == EstimationType.SIMULATION)
-//			n.zero();
-//		return new NormalEquationSystem(N, n, V);
-//	}
 
 	private void detectRankDefect() {
 		this.rankDefect.reset();
@@ -743,8 +871,8 @@ public class BundleAdjustment {
 		return this.sigma2apriori;
 	}
 	
-	public void setCovarianceExportPathAndBaseName(String path) {
-		this.coVarExportPathAndFileName = path;
+	public void setCovarianceExportPathAndBaseName(String path, boolean exportDatumConditions) {
+		this.dispersionMatrixExportProperties = path == null ? null : new DispersionMatrixExportProperties(path, exportDatumConditions);
 	}
 	
 	public void setEstimationType(EstimationType estimationType) throws UnsupportedOperationException {
@@ -762,18 +890,21 @@ public class BundleAdjustment {
 	 * 
 	 * @param invert
 	 */
-	public void setInvertNormalEquation(boolean invert) {
+	public void setInvertNormalEquation(MatrixInversion invert) {
 		this.invertNormalEquationMatrix = invert;
 	}
 	
 	private boolean exportCovarianceMatrix() {
-		if (this.coVarExportPathAndFileName == null)
+		if (this.dispersionMatrixExportProperties == null)
 			return true;
 
-		File coVarMatrixFile = new File(this.coVarExportPathAndFileName + ".cxx");
-		File coVarInfoFile   = new File(this.coVarExportPathAndFileName + ".info");
+		String exportPathAndFileName   = this.dispersionMatrixExportProperties.exportPathAndFileName;
+		boolean includeDatumConditions = this.dispersionMatrixExportProperties.includeDatumConditions;
 
-		return this.exportCovarianceMatrixInfoToFile(coVarInfoFile) && this.exportCovarianceMatrixToFile(coVarMatrixFile);
+		File coVarMatrixFile = new File(exportPathAndFileName + ".cxx");
+		File coVarInfoFile   = new File(exportPathAndFileName + ".info");
+
+		return this.exportCovarianceMatrixInfoToFile(coVarInfoFile, includeDatumConditions) && this.exportCovarianceMatrixToFile(coVarMatrixFile, includeDatumConditions);
 	}
 	
 	public UpperSymmPackMatrix getCofactorMatrix() {
@@ -785,7 +916,7 @@ public class BundleAdjustment {
 	 * @param f
 	 * @return isWritten
 	 */
-	private boolean exportCovarianceMatrixInfoToFile(File f) {
+	private boolean exportCovarianceMatrixInfoToFile(File f, boolean includeDatumConditions) {
 		// noch keine Loesung vorhanden
 		if (f == null) //  || this.Qxx == null
 			return false;
@@ -793,6 +924,7 @@ public class BundleAdjustment {
 		this.currentEstimationStatus = EstimationStateType.EXPORT_COVARIANCE_INFORMATION;
 		this.change.firePropertyChange(this.currentEstimationStatus.name(), null, f.toString());
 
+		int indexDatum = includeDatumConditions ? 0 : this.rankDefect.getDefect();
 		boolean isComplete = false;
 		PrintWriter pw = null;
 		try {
@@ -805,9 +937,9 @@ public class BundleAdjustment {
 				UnknownParameter<ObjectCoordinate> Z = objectCoordinate.getZ();
 				String name = objectCoordinate.getName();
 				
-				pw.printf(Locale.ENGLISH, format, name, 'X', X.getValue(), X.getColumn());
-				pw.printf(Locale.ENGLISH, format, name, 'Y', Y.getValue(), Y.getColumn());
-				pw.printf(Locale.ENGLISH, format, name, 'Z', Z.getValue(), Z.getColumn());
+				pw.printf(Locale.ENGLISH, format, name, 'X', X.getValue(), X.getColumn() - indexDatum);
+				pw.printf(Locale.ENGLISH, format, name, 'Y', Y.getValue(), Y.getColumn() - indexDatum);
+				pw.printf(Locale.ENGLISH, format, name, 'Z', Z.getValue(), Z.getColumn() - indexDatum);
 
 			}
 			isComplete = true;
@@ -828,7 +960,7 @@ public class BundleAdjustment {
 	 * @param f
 	 * @return isWritten
 	 */
-	private boolean exportCovarianceMatrixToFile(File f) {
+	private boolean exportCovarianceMatrixToFile(File f, boolean includeDatumConditions) {
 		// noch keine Loesung vorhanden
 		if (f == null || this.Qxx == null || this.Qxx.numRows() < this.numberOfUnknownParameters)
 			return false;
@@ -840,12 +972,15 @@ public class BundleAdjustment {
 		PrintWriter pw = null;
 		double sigma2apost = this.getVarianceFactorAposteriori();
 
+		int numberOfDatumConditions = this.rankDefect.getDefect();
+		int size = this.invertNormalEquationMatrix == MatrixInversion.REDUCED ? this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 : this.Qxx.numRows() - numberOfDatumConditions;
+		size = includeDatumConditions ? size + numberOfDatumConditions : size;
+		
 		try {
 			pw = new PrintWriter(new BufferedWriter(new FileWriter( f )));
-
-			for (int i=0; i<this.numberOfUnknownParameters; i++) {
-				for (int j=0; j<this.numberOfUnknownParameters; j++) {
-					pw.printf(Locale.ENGLISH, "%+35.15f  ", sigma2apost*this.Qxx.get(i,j));
+			for (int i = includeDatumConditions ? 0 : numberOfDatumConditions; i < size; i++) {
+				for (int j = includeDatumConditions ? 0 : numberOfDatumConditions; j < size; j++) {
+					pw.printf(Locale.ENGLISH, "%+35.15f  ", sigma2apost*this.Qxx.get(i, j));
 				}
 				pw.println();	
 			}
@@ -869,12 +1004,97 @@ public class BundleAdjustment {
 	public void applyAposterioriVarianceOfUnitWeight(boolean applyAposterioriVarianceOfUnitWeight) {
 		this.applyAposterioriVarianceOfUnitWeight = applyAposterioriVarianceOfUnitWeight;
 	}
+	
+	private void reduceNormalEquationMatrix(NormalEquationSystem neq) throws IllegalArgumentException, MatrixSingularException {
+		for (Camera camera : this.cameras)
+			this.reduceNormalEquationMatrix(neq, camera);
+	}
+	
+	private void reduceNormalEquationMatrix(NormalEquationSystem neq, Camera camera) throws IllegalArgumentException, MatrixSingularException {
+		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
+		
+		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(10);
+		for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
+			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
+				continue;
+			unknownInteriorOrientation.add(unknownParameter);
+		}
 
+		for (Image image : camera)
+			this.reduceNormalEquationMatrix(neq, image, unknownInteriorOrientation);
+	}
+	
+	private void reduceNormalEquationMatrix(NormalEquationSystem neq, Image image, List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation) throws IllegalArgumentException, MatrixSingularException {
+		UpperSymmPackMatrix N = neq.getMatrix();
+		DenseVector n = neq.getVector();
+		
+		ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
+		List<UnknownParameter<ExteriorOrientation>> unknownExteriorOrientation = new ArrayList<UnknownParameter<ExteriorOrientation>>(10);
+		
+		for (UnknownParameter<ExteriorOrientation> unknownParameter : exteriorOrientation) {
+			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
+				continue;
+			unknownExteriorOrientation.add(unknownParameter);
+		}
+		
+		UpperSymmPackMatrix N22 = new UpperSymmPackMatrix(unknownExteriorOrientation.size());
+		DenseVector n2 = new DenseVector(N22.numRows());
+		for (int rowN22 = 0; rowN22 < N22.numRows(); rowN22++) {
+			UnknownParameter<ExteriorOrientation> unknownParameterRow = unknownExteriorOrientation.get(rowN22);
+			int rowN = unknownParameterRow.getColumn();
+			
+			for (int columnN22 = rowN22; columnN22 < N22.numColumns(); columnN22++) {
+				UnknownParameter<ExteriorOrientation> unknownParameterColumn = unknownExteriorOrientation.get(columnN22);
+				int columnN = unknownParameterColumn.getColumn();
+				
+				N22.set(rowN22, columnN22, N.get(rowN, columnN));
+			}
+			n2.set(rowN22, n.get(rowN));
+		}
+		
+		MathExtension.inv(N22);
+
+		List<UnknownParameter<?>> unknownParameters = new ArrayList<UnknownParameter<?>>();
+		unknownParameters.addAll(unknownInteriorOrientation);
+		
+		for (ImageCoordinate imageCoordinate : image) {
+			ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
+			unknownParameters.add(objectCoordinate.getX());
+			unknownParameters.add(objectCoordinate.getY());
+			unknownParameters.add(objectCoordinate.getZ());
+		}
+		
+		for (UnknownParameter<?> unknownParameterRow : unknownParameters) {
+			int rowN = unknownParameterRow.getColumn();
+			DenseVector n12 = new DenseVector(N22.numColumns());
+			for (int columnN22 = 0; columnN22 < N22.numColumns(); columnN22++) {
+				double dot = 0;
+				for (int rowN22 = 0; rowN22 < N22.numRows(); rowN22++) {
+					int columnN12 = unknownExteriorOrientation.get(rowN22).getColumn();
+					dot += N.get(rowN, columnN12) * N22.get(rowN22, columnN22);
+				}
+				n12.set(columnN22, dot);
+			}
+			
+			n.add(rowN, -n12.dot(n2));
+
+			for (UnknownParameter<?> unknownParameterColumn : unknownParameters) {
+				int columnN = unknownParameterColumn.getColumn();
+				double dot = 0;
+				for (int rowN22 = 0; rowN22 < N22.numRows(); rowN22++) {
+					int rowN12 = unknownExteriorOrientation.get(rowN22).getColumn();
+					dot += n12.get(rowN22) * N.get(columnN, rowN12);
+				}
+				N.add(rowN, columnN, -dot);
+			}
+		}
+	}
+	
 	public void addPropertyChangeListener(PropertyChangeListener listener) {
 		this.change.addPropertyChangeListener(listener);
 	}
 
 	public void removePropertyChangeListener(PropertyChangeListener listener) {
 		this.change.removePropertyChangeListener(listener);
-	}	
+	}
 }
