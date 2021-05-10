@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -187,7 +188,7 @@ public class AICONReportFileReader extends SourceFileReader<BundleAdjustment> {
 		String nameA = columns[0].trim();
 		String nameB = columns[1].trim();
 
-		if (!this.objectCoordinates.containsKey(nameA) || !this.objectCoordinates.containsKey(nameB))
+		if (!this.objectCoordinates.containsKey(nameA) || !this.objectCoordinates.containsKey(nameB) || nameA.equals(nameB))
 			return;
 
 		double value = Double.parseDouble(columns[2]);
@@ -347,5 +348,9 @@ public class AICONReportFileReader extends SourceFileReader<BundleAdjustment> {
 			this.camera.getInteriorOrientation().get(ParameterType.AFFINITY_AND_SHEAR_C2).setColumn(fixed ? Integer.MAX_VALUE : -1);
 			break;
 		}
+	}
+	
+	public Collection<Camera> getCameras() {
+		return this.cameras.values();
 	}
 }
