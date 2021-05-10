@@ -84,7 +84,7 @@ public class JAiCov implements PropertyChangeListener {
 		adjustment.addPropertyChangeListener(new JAiCov());
 		// Select the estimation type, e.g., L2Norm or Simulation
 		adjustment.setEstimationType(EstimationType.L2NORM);
-		// Use FALSE, if the dispersion matrix is not required
+		// Use NONE, if the dispersion matrix is not required
 		adjustment.setInvertNormalEquation(estimateDispersionMatrix);
 
 		// Call estimate to start the bundle adjustment
