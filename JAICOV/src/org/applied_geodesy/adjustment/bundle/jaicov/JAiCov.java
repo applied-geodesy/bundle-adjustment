@@ -23,6 +23,7 @@ package org.applied_geodesy.adjustment.bundle.jaicov;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Set;
 
@@ -30,6 +31,10 @@ import org.applied_geodesy.adjustment.EstimationStateType;
 import org.applied_geodesy.adjustment.EstimationType;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
+import org.applied_geodesy.adjustment.bundle.BundleAdjustment.MatrixInversion;
+import org.applied_geodesy.adjustment.bundle.Camera;
+import org.applied_geodesy.adjustment.bundle.Image;
+import org.applied_geodesy.adjustment.bundle.ImageCoordinate;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.util.io.AICONReportFileReader;
 
@@ -49,30 +54,40 @@ public class JAiCov implements PropertyChangeListener {
 		System.setProperty("com.github.fommil.netlib.ARPACK", "com.github.fommil.netlib.F2jARPACK");
 
 		long t = System.currentTimeMillis();
-		boolean estimateDispersionMatrix = Boolean.TRUE;
+		MatrixInversion estimateDispersionMatrix = MatrixInversion.FULL;
 		
-		// Read adjustment report of Aicon Studio 3D
+		// Read adjustment report from Aicon Studio 3D
 		AICONReportFileReader reader = new AICONReportFileReader("example/example.htm");
 
 		// Create an adjustment object using a specific file reader
 		BundleAdjustment adjustment = reader.readAndImport();
+		
+		// Get all camera objects from reader
+		Collection<Camera> cameras = reader.getCameras();
 
 		// Specify the points, which are used to define the datum of the frame
-		// this step is not mandatory
-		Set<ObjectCoordinate> objectCoordinates = adjustment.getObjectCoordinates();
-		for (ObjectCoordinate objectCoordinate : objectCoordinates) {
-			if (objectCoordinate.getName().length() > 3)
-				objectCoordinate.setDatum(Boolean.FALSE);
+		// !!!this step is not mandatory!!!
+		for (Camera camera : cameras) {
+			// Call the images taken from this camera object
+			for (Image image : camera) {
+				// Extract the image coordinates
+				for (ImageCoordinate imageCoordinate : image) {
+					// Select corresponding object coordinates
+					ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
+					if (objectCoordinate.getName().length() > 3)
+						objectCoordinate.setDatum(Boolean.FALSE);
+				}
+			}
 		}
 
-		// add a listener to get notifications of the adjustment process
+		// Add a listener to get notifications of the adjustment process
 		adjustment.addPropertyChangeListener(new JAiCov());
-		// select the estimation type, e.g., L2Norm or Simulation
+		// Select the estimation type, e.g., L2Norm or Simulation
 		adjustment.setEstimationType(EstimationType.L2NORM);
 		// Use FALSE, if the dispersion matrix is not required
 		adjustment.setInvertNormalEquation(estimateDispersionMatrix);
 
-		// call estimate to start the bundle adjustment
+		// Call estimate to start the bundle adjustment
 		EstimationStateType estimationStateType = adjustment.estimateModel();
 
 		// Check the result
@@ -87,6 +102,7 @@ public class JAiCov implements PropertyChangeListener {
 			String template = "%10s\t%+16.5f\t%+16.5f\t%+16.5f\t%+8.5f\t%+8.5f\t%+8.5f\t%1s";
 
 			// print coordinates of object points and related uncertainties
+			Set<ObjectCoordinate> objectCoordinates = adjustment.getObjectCoordinates();
 			for (ObjectCoordinate objectCoordinate : objectCoordinates) {
 				UnknownParameter<ObjectCoordinate> X = objectCoordinate.getX();
 				UnknownParameter<ObjectCoordinate> Y = objectCoordinate.getY();
@@ -101,7 +117,7 @@ public class JAiCov implements PropertyChangeListener {
 
 				double ux = 0, uy = 0, uz = 0;
 
-				if (estimateDispersionMatrix && X.getColumn() >= 0 && Y.getColumn() >= 0 && Z.getColumn() >= 0) {
+				if (estimateDispersionMatrix != MatrixInversion.NONE && X.getColumn() >= 0 && Y.getColumn() >= 0 && Z.getColumn() >= 0) {
 					ux = Math.sqrt(Math.abs(D.get(X.getColumn(), X.getColumn())));
 					uy = Math.sqrt(Math.abs(D.get(Y.getColumn(), Y.getColumn())));
 					uz = Math.sqrt(Math.abs(D.get(Z.getColumn(), Z.getColumn())));
