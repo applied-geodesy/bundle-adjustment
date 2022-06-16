@@ -27,9 +27,11 @@ effort is justifiable, and the benefit of a small but high accurate set of point
 point cloud. For such specific applications, this tiny bundle adjustment library is developed.
 
 ## Field of application
-The library was developed within the international project [GeoMetre](https://www.ptb.de/empir2018/geometre/home/), a joint research project within the European Metrology Research Programme EMPIR (Grant Number: 18SIB01, Funding: [10.13039/100014132](https://doi.org/10.13039/100014132)). The bundle adjustment was applied in the framework of reference point determination of laser telescopes used for satellite laser ranging (SLR).  
+The library was developed within the international project [GeoMetre](https://www.ptb.de/empir2018/geometre/home/), a joint research project within the European Metrology Research Programme EMPIR (Grant Number: 18SIB01, Funding: [10.13039/100014132](https://doi.org/10.13039/100014132)). The bundle adjustment was applied in the framework of reference point determination of laser telescopes used for satellite laser ranging (SLR).
 
 Lösler, M., Eschelbach, C., Klügel, T., Riepl, S.: *ILRS Reference Point Determination using Close Range Photogrammetry.* Applied Sciences, 11(6), 2785, 2021. DOI: [10.3390/app11062785](https://doi.org/10.3390/app11062785)
+
+Lösler, M., Eschelbach, C., Klügel, T.: *Close Range Photogrammetry for High-Precision Reference Point Determination: A Proof of Concept at Satellite Observing System Wettzell.* In: Freymueller, J. T., Sánchez, L. (eds.): Geodesy for a Sustainable Earth, Scientific Assembly of the International Association of Geodesy (IAG), Springer, Berlin, 2022. DOI: [10.1007/1345_2022_141](https://doi.org/10.1007/1345_2022_141)
 
 ## System requirements
 The bundle adjustment is written in the platform-independent programming language Java and, therefore, the software is runnable at each platform and operation system that provides a Java Runtime Environment (JRE). The JRE can be found for several platforms at Oracles [download page](https://java.oracle.com) or at the [OpenJDK](https://openjdk.java.net)-project pages.
