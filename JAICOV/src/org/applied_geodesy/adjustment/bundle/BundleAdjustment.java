@@ -864,7 +864,7 @@ public class BundleAdjustment {
 	
 	public double getVarianceFactorAposteriori() {
 		int degreeOfFreedom = this.getDegreeOfFreedom();
-		return degreeOfFreedom > 0 && this.omega > 0 && this.estimationType != EstimationType.SIMULATION && this.applyAposterioriVarianceOfUnitWeight ? Math.abs(this.omega/(double)degreeOfFreedom) : 1.0;
+		return degreeOfFreedom > 0 && this.omega > 0 && this.estimationType != EstimationType.SIMULATION && this.applyAposterioriVarianceOfUnitWeight ? Math.abs(this.omega/(double)degreeOfFreedom) : this.sigma2apriori;
 	}
 	
 	public double getVarianceFactorApriori() {
