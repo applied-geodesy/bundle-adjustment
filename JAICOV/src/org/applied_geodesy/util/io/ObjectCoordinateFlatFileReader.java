@@ -28,10 +28,7 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
-import org.applied_geodesy.util.io.SourceFileReader;
-
 
 public class ObjectCoordinateFlatFileReader extends SourceFileReader<Map<String, ObjectCoordinate>> {
 	private Map<String, ObjectCoordinate> coordinates = new LinkedHashMap<String, ObjectCoordinate>();
