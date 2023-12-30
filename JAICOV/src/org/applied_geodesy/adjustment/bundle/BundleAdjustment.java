@@ -858,6 +858,14 @@ public class BundleAdjustment {
 		return this.objectCoordinates;
 	}
 	
+	public int getNumberOfObservations() {
+		return this.numberOfObservations;
+	}
+	
+	public int getNumberOfUnknownParameters() {
+		return this.numberOfUnknownParameters;
+	}
+	
 	public int getDegreeOfFreedom() {
 		return this.numberOfObservations - this.numberOfUnknownParameters + this.rankDefect.getDefect();
 	}
