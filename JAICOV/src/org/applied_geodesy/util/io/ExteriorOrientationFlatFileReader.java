@@ -33,7 +33,7 @@ import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 
 public class ExteriorOrientationFlatFileReader extends SourceFileReader<Camera> {
 	private final Camera camera;
-	private int imgid = 1;
+
 	public ExteriorOrientationFlatFileReader(Camera camera) {
 		this.camera = camera;
 		this.reset();
@@ -54,9 +54,7 @@ public class ExteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 	}
 	
 	@Override
-	public void reset() {
-		this.imgid = 1;
-	}
+	public void reset() {	}
 
 	@Override
 	public Camera readAndImport() throws IOException, SQLException {
@@ -73,35 +71,40 @@ public class ExteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 		try {
 			
 			
-//		     6.9023  -1976.8731  -1394.6327     2.15936712 -0.02770565 -0.03094882
-//		    61.7070  -1987.8665  -1376.9822     2.13014527 -0.06227612 -1.57543791
-//		     3.9796  -1983.6757  -1410.3555     2.08371542 -0.04995296  1.52097805
-//		    75.4013  -1802.6736  -1501.9709     2.13684490 -0.09142014 -3.11116284
+		    // 1 10  6.9023  -1976.8731  -1394.6327     2.15936712 -0.02770565 -0.03094882
+		    // 1 11 61.7070  -1987.8665  -1376.9822     2.13014527 -0.06227612 -1.57543791
+		    // 1 12  3.9796  -1983.6757  -1410.3555     2.08371542 -0.04995296  1.52097805
+		    // 1 12 75.4013  -1802.6736  -1501.9709     2.13684490 -0.09142014 -3.11116284
 			
 			String columns[] = line.split("\\s+");
-			if (columns.length < 6)
+			if (columns.length < 8)
 				return;
 			
-			double X0 = Double.parseDouble(columns[0].trim());
-			double Y0 = Double.parseDouble(columns[1].trim());
-			double Z0 = Double.parseDouble(columns[2].trim());
+			long camid = Long.parseLong(columns[0].trim());
+
+			if (camid != this.camera.getId())
+				return;
 			
-			double OMEGA = Double.parseDouble(columns[3].trim());
-			double PHI   = Double.parseDouble(columns[4].trim());
-			double KAPPA = Double.parseDouble(columns[5].trim());
-			
-			Image image = this.camera.add(this.imgid);
-	
+			long imgid = Long.parseLong(columns[1].trim());
+
+			double X0 = Double.parseDouble(columns[2].trim());
+			double Y0 = Double.parseDouble(columns[3].trim());
+			double Z0 = Double.parseDouble(columns[4].trim());
+
+			double OMEGA = Double.parseDouble(columns[5].trim());
+			double PHI   = Double.parseDouble(columns[6].trim());
+			double KAPPA = Double.parseDouble(columns[7].trim());
+
+			Image image = this.camera.add(imgid);
+
 			ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
 			exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).setValue(X0);
 			exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).setValue(Y0);
 			exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).setValue(Z0);
-			
+
 			exteriorOrientation.get(ParameterType.CAMERA_OMEGA).setValue(OMEGA);
 			exteriorOrientation.get(ParameterType.CAMERA_PHI).setValue(PHI);
 			exteriorOrientation.get(ParameterType.CAMERA_KAPPA).setValue(KAPPA);
-			
-			this.imgid++;
 		}
 		catch (Exception err) {
 			err.printStackTrace();

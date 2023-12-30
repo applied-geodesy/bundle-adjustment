@@ -76,16 +76,16 @@ public class ImageCoordinateFlatFileReader extends SourceFileReader<Camera> {
 		try {
 			
 			
-//			1  16      116         -9.457563      2.724932      0.000500    0.000500
-//			1  16      117         -9.919849     -0.616718      0.000500    0.000500
-//			1  16      120         -5.538143      3.031979      0.000500    0.000500
+			// 1  16      116         -9.457563      2.724932      0.000500    0.000500
+			// 1  16      117         -9.919849     -0.616718      0.000500    0.000500
+			// 1  16      120         -5.538143      3.031979      0.000500    0.000500
 			
 			String columns[] = line.split("\\s+");
 			if (columns.length < 7)
 				return;
-			
-			int camid = Integer.parseInt(columns[0].trim());
-			int imgid = Integer.parseInt(columns[1].trim());
+
+			long camid = Long.parseLong(columns[0].trim());
+			long imgid = Long.parseLong(columns[1].trim());
 			
 			if (camid != this.camera.getId())
 				return;
