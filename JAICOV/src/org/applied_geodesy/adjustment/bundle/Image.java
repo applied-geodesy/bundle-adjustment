@@ -28,13 +28,13 @@ import java.util.Map;
 import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
 
 public class Image implements Referenceable<Camera>, Iterable<ImageCoordinate> {
-	private final int id;
+	private final long id;
 	private final Camera camera;
 	
 	private ExteriorOrientation exteriorOrientation = new ExteriorOrientation();
 	private Map<ObjectCoordinate, ImageCoordinate> imageCoordinates = new LinkedHashMap<ObjectCoordinate, ImageCoordinate>();
 	
-	Image(int id, Camera camera) {
+	Image(long id, Camera camera) {
 		this.id = id;
 		this.camera = camera;
 	}
@@ -43,7 +43,7 @@ public class Image implements Referenceable<Camera>, Iterable<ImageCoordinate> {
 		return this.exteriorOrientation;
 	}
 	
-	public final int getId() {
+	public final long getId() {
 		return this.id;
 	}
 	

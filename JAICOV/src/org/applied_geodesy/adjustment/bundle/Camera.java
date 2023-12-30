@@ -28,12 +28,12 @@ import java.util.Map;
 import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
 
 public class Camera implements Iterable<Image> {
-	private final int id;
+	private final long id;
 	private final double r0;
 	private InteriorOrientation interiorOrientation = new InteriorOrientation();
-	private Map<Integer, Image> images = new LinkedHashMap<Integer, Image>();
+	private Map<Long, Image> images = new LinkedHashMap<Long, Image>();
 	
-	public Camera(int id, double r0) {
+	public Camera(long id, double r0) {
 		this.id = id;
 		this.r0 = r0;
 	}
@@ -42,7 +42,7 @@ public class Camera implements Iterable<Image> {
 		return this.interiorOrientation;
 	}
 	
-	public final int getId() {
+	public final long getId() {
 		return this.id;
 	}
 	
@@ -65,7 +65,7 @@ public class Camera implements Iterable<Image> {
 		return true;
 	}
 	
-	public Image add(int imageId) {
+	public Image add(long imageId) {
 		if (this.images.containsKey(imageId))
 			return this.images.get(imageId);
 		Image image = new Image(imageId, this);
