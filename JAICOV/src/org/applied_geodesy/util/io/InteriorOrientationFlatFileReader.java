@@ -69,44 +69,51 @@ public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 		try {
 			
 			
-//		     7.244192e-003	1.164305e-001	2.868147e+001	-1.097712e-004	1.535086e-007	0.000000e+000	8.273977e-006	-1.054657e-005	-7.008010e-005	-3.126270e-005
+		    // 1 7.244192e-003	1.164305e-001	2.868147e+001	-1.097712e-004	1.535086e-007	0.000000e+000	8.273977e-006	-1.054657e-005	-7.008010e-005	-3.126270e-005
 			
 			String columns[] = line.split("\\s+");
-			if (columns.length < 10)
+			if (columns.length < 11)
 				return;
 			
-			double x0 = Double.parseDouble(columns[0].trim());
-			double y0 = Double.parseDouble(columns[1].trim());
-			double c  = Double.parseDouble(columns[2].trim());
 			
-			double A1 = Double.parseDouble(columns[3].trim());
-			double A2 = Double.parseDouble(columns[4].trim());
-			double A3 = Double.parseDouble(columns[5].trim());
-			
-			double B1 = Double.parseDouble(columns[6].trim());
-			double B2 = Double.parseDouble(columns[7].trim());
-			
-			double C1 = Double.parseDouble(columns[8].trim());
-			double C2 = Double.parseDouble(columns[9].trim());
-			
-						
+			long camid = Long.parseLong(columns[0].trim());
+
+			if (camid != this.camera.getId())
+				throw new IllegalArgumentException("Error, camera-id mismatch: " + this.camera.getId() + " vs. " + camid + "!");
+
+			double x0 = Double.parseDouble(columns[1].trim());
+			double y0 = Double.parseDouble(columns[2].trim());
+			double c  = Double.parseDouble(columns[3].trim());
+
+			double A1 = Double.parseDouble(columns[4].trim());
+			double A2 = Double.parseDouble(columns[5].trim());
+			double A3 = Double.parseDouble(columns[6].trim());
+
+			double B1 = Double.parseDouble(columns[7].trim());
+			double B2 = Double.parseDouble(columns[8].trim());
+
+			double C1 = Double.parseDouble(columns[9].trim());
+			double C2 = Double.parseDouble(columns[10].trim());
+
+
 			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 			interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X).setValue(x0);
 			interiorOrientation.get(ParameterType.PRINCIPAL_POINT_Y).setValue(y0);
 			interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE).setValue(c);
-			
+
 			interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A1).setValue(A1);
 			interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).setValue(A2);
 			interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).setValue(A3);
 			interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).setColumn(Integer.MAX_VALUE);
-			
+
 			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).setValue(B1);
 			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).setValue(B2);
-			
+
 			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).setValue(C1);
 			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).setColumn(Integer.MAX_VALUE);
 			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).setValue(C2);
 			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).setColumn(Integer.MAX_VALUE);
+			
 		}
 		catch (Exception err) {
 			err.printStackTrace();
