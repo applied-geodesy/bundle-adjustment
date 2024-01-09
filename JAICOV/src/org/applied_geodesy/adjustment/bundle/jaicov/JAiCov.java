@@ -48,7 +48,7 @@ public class JAiCov implements PropertyChangeListener {
 	}
 
 	public static void main(String[] args) throws Exception {
-		// Prevent warning of native implementation
+		// Prevent warning of (missing) native implementation
 		System.setProperty("com.github.fommil.netlib.BLAS",   "com.github.fommil.netlib.F2jBLAS");
 		System.setProperty("com.github.fommil.netlib.LAPACK", "com.github.fommil.netlib.F2jLAPACK");
 		System.setProperty("com.github.fommil.netlib.ARPACK", "com.github.fommil.netlib.F2jARPACK");
@@ -117,7 +117,7 @@ public class JAiCov implements PropertyChangeListener {
 
 				double ux = 0, uy = 0, uz = 0;
 
-				if (estimateDispersionMatrix != MatrixInversion.NONE && X.getColumn() >= 0 && Y.getColumn() >= 0 && Z.getColumn() >= 0) {
+				if (estimateDispersionMatrix != MatrixInversion.NONE && X.getColumn() >= 0 && Y.getColumn() >= 0 && Z.getColumn() >= 0 && X.getColumn() != Integer.MAX_VALUE && Y.getColumn() != Integer.MAX_VALUE && Z.getColumn() != Integer.MAX_VALUE) {
 					ux = Math.sqrt(Math.abs(D.get(X.getColumn(), X.getColumn())));
 					uy = Math.sqrt(Math.abs(D.get(Y.getColumn(), Y.getColumn())));
 					uz = Math.sqrt(Math.abs(D.get(Z.getColumn(), Z.getColumn())));
@@ -127,10 +127,12 @@ public class JAiCov implements PropertyChangeListener {
 			}
 
 			// print some statistical parameters
-			System.out.println("Degree of freedom:          " + adjustment.getDegreeOfFreedom());
-			System.out.println("Variance of unit weight:    1.0 : " + adjustment.getVarianceFactorAposteriori() / adjustment.getVarianceFactorApriori());
-			System.out.println("Variance of unit weight:    " + adjustment.getVarianceFactorApriori() + " : " + adjustment.getVarianceFactorAposteriori());
-			System.out.println("Estimation time:            " + ((System.currentTimeMillis() - t)/1000.0) + " sec");	
+			System.out.println("Number of observations:           " + adjustment.getNumberOfObservations());
+			System.out.println("Number of unknown parameters:     " + adjustment.getNumberOfUnknownParameters());
+			System.out.println("Degree of freedom:                " + adjustment.getDegreeOfFreedom());
+			System.out.println("Variances of unit weight:         1.0 : " + adjustment.getVarianceFactorAposteriori() / adjustment.getVarianceFactorApriori());
+			System.out.println("Variances of unit weight (ratio): " + adjustment.getVarianceFactorApriori() + " : " + adjustment.getVarianceFactorAposteriori());
+			System.out.println("Estimation time:                  " + ((System.currentTimeMillis() - t)/1000.0) + " sec");	
 		}
 	}
 }
