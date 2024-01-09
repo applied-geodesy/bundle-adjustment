@@ -139,7 +139,7 @@ public class BundleAdjustment {
 					break;
 				}
 			}
-
+			
 			if (cntX == cntY && cntX == cntZ && cntY == cntZ && cntX > 0) {
 				x0 /= cntX;
 				y0 /= cntY;
@@ -239,19 +239,19 @@ public class BundleAdjustment {
 							this.change.firePropertyChange(this.currentEstimationStatus.name(), false, true);
 						}
 						
-						// In-Situ Invertierung der NGL: N <-- Qxx, n <-- dx 
+						// in-place solution of NES, i.e., N <-- Qxx, n <-- dx 
 						if (this.invertNormalEquationMatrix == MatrixInversion.REDUCED) {
 							int numRows = this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 + this.rankDefect.getDefect();
-							// reduziere Gleichungssystem
+							// reduced system of equations
 							this.reduceNormalEquationMatrix(neq);
-							// In-Situ Invertierung der NGL: N <-- Qxx, n <-- dx 
+							// in-place solution of NES, i.e., N <-- Qxx, n <-- dx 
 							MathExtension.solve(N, n, numRows, Boolean.TRUE);
 						}
 						else {
 							MathExtension.solve(N, n, this.invertNormalEquationMatrix == MatrixInversion.FULL);
 						}
 
-						this.applyPrecondition(neq.getPreconditioner(), N);
+						this.applyPrecondition(neq.getPreconditioner(), N, dx);
 						this.Qxx = N;
 
 
@@ -260,10 +260,11 @@ public class BundleAdjustment {
 							this.change.firePropertyChange(this.currentEstimationStatus.name(), false, true);
 						}
 					}
-					else
-						// Loese Nx=n und ueberschreibe n durch die Loesung x
+					else {
+						// Solve Nx = n in-place, i.e., n <-- dx 
 						MathExtension.solve(N, n, false);
-					this.applyPrecondition(neq.getPreconditioner(), dx);
+						this.applyPrecondition(neq.getPreconditioner(), null, dx);
+					}
 
 					n = null;
 					N = null;
@@ -508,12 +509,18 @@ public class BundleAdjustment {
 		double x0 = 0, y0 = 0, z0 = 0;
 		int count = 0;
 		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
-			if (objectCoordinate.isDatum()) {
-				x0 += objectCoordinate.getX().getValue();
-				y0 += objectCoordinate.getY().getValue();
-				z0 += objectCoordinate.getZ().getValue();
-				count++;
-			}
+			int columnX = objectCoordinate.getX().getColumn();
+			int columnY = objectCoordinate.getY().getColumn();
+			int columnZ = objectCoordinate.getZ().getColumn();
+			
+			if (!objectCoordinate.isDatum() || columnX == Integer.MAX_VALUE || columnY == Integer.MAX_VALUE || columnZ == Integer.MAX_VALUE)
+				continue;
+			
+			x0 += objectCoordinate.getX().getValue();
+			y0 += objectCoordinate.getY().getValue();
+			z0 += objectCoordinate.getZ().getValue();
+			count++;
+
 		}
 
 		if (count < 3)
@@ -540,12 +547,12 @@ public class BundleAdjustment {
 		double normColumn[] = new double[defectSize];
 
 		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
-			if (!objectCoordinate.isDatum())
-				continue;
-
 			int columnX = objectCoordinate.getX().getColumn();
 			int columnY = objectCoordinate.getY().getColumn();
 			int columnZ = objectCoordinate.getZ().getColumn();
+			
+			if (!objectCoordinate.isDatum() || columnX == Integer.MAX_VALUE || columnY == Integer.MAX_VALUE || columnZ == Integer.MAX_VALUE)
+				continue;
 
 			double x = objectCoordinate.getX().getValue() - x0;
 			double y = objectCoordinate.getY().getValue() - y0;
@@ -601,12 +608,12 @@ public class BundleAdjustment {
 
 		// Normieren der Spalten
 		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
-			if (!objectCoordinate.isDatum())
-				continue;
-
 			int columnX = objectCoordinate.getX().getColumn();
 			int columnY = objectCoordinate.getY().getColumn();
 			int columnZ = objectCoordinate.getZ().getColumn();
+			
+			if (!objectCoordinate.isDatum() || columnX == Integer.MAX_VALUE || columnY == Integer.MAX_VALUE || columnZ == Integer.MAX_VALUE)
+				continue;
 
 			if (tx >= 0)
 				N.set(row + tx, columnX, N.get(row + tx, columnX) / Math.sqrt(normColumn[tx]));
@@ -777,11 +784,13 @@ public class BundleAdjustment {
 	}
 
 	/**
-	 * @return - Normalgleichungssystem
+	 * Create system of normal equations Nx = n, were N contains datum conditions. Moreover
+	 * the preconditioner, i.e., the root of the main diagonal of N, is derived
+	 * @return Normal equation system
 	 */
 	public NormalEquationSystem createNormalEquation() {
 
-		UpperSymmPackMatrix N = new UpperSymmPackMatrix( this.numberOfUnknownParameters + this.rankDefect.getDefect());
+		UpperSymmPackMatrix N = new UpperSymmPackMatrix( this.numberOfUnknownParameters + this.rankDefect.getDefect() );
 		UpperSymmBandMatrix V = new UpperSymmBandMatrix( N.numRows(), 0 );
 		DenseVector n = new DenseVector( N.numRows() );
 		
@@ -791,68 +800,159 @@ public class BundleAdjustment {
 
 		this.addDatumConditionRows(N);
 		
-//		// Vorkonditionierer == Wurzel der Hauptdiagonale
+		// Preconditioner == Root of the main diagonal
 		for (int column = 0; column < N.numColumns(); column++) {
 			double value = N.get(column, column);
 			V.set(column, column, value > Constant.EPS ? 1.0 / Math.sqrt(value) : 1.0);
 		}
 		
-		
 		if (this.estimationType == EstimationType.SIMULATION)
 			n.zero();
+		
 		return new NormalEquationSystem(N, n, V);
 	}
 
 	private void detectRankDefect() {
+		boolean hasScaleBars = !this.scaleBars.isEmpty();
 		this.rankDefect.reset();
-
+		
 		this.rankDefect.setTranslationX(DefectType.FREE);
 		this.rankDefect.setTranslationY(DefectType.FREE);
 		this.rankDefect.setTranslationZ(DefectType.FREE);
-
+		
 		this.rankDefect.setRotationX(DefectType.FREE);
 		this.rankDefect.setRotationY(DefectType.FREE);
 		this.rankDefect.setRotationZ(DefectType.FREE);
-
-		this.rankDefect.setScale(this.scaleBars.isEmpty() ? DefectType.FREE : DefectType.FIXED);
-	}
-	
-	private void applyPrecondition(NormalEquationSystem neq) {
-		if (neq.getPreconditioner() != null) {
-			this.applyPrecondition(neq.getPreconditioner(), neq.getMatrix());
-			this.applyPrecondition(neq.getPreconditioner(), neq.getVector());
-		}
-	}
-
-	private void applyPrecondition(UpperSymmBandMatrix V, UpperSymmPackMatrix M) {
-		for (int row = 0; row < M.numRows(); row++) {
-			for (int column = row; column < M.numColumns(); column++) {
-				M.set(row, column, V.get(column, column) * M.get(row, column) * V.get(row, row));
+		
+		this.rankDefect.setScale(hasScaleBars ? DefectType.FIXED : DefectType.FREE);
+		
+		int countFixedX = 0;
+		int countFixedY = 0;
+		int countFixedZ = 0;
+		
+		for (ObjectCoordinate coordinate : this.objectCoordinates) {
+			countFixedX += coordinate.getX().getColumn() == Integer.MAX_VALUE ? 1 : 0;
+			countFixedY += coordinate.getY().getColumn() == Integer.MAX_VALUE ? 1 : 0;
+			countFixedZ += coordinate.getZ().getColumn() == Integer.MAX_VALUE ? 1 : 0;
+			
+			if (this.rankDefect.estimateTranslationX() && countFixedX > 0)
+				this.rankDefect.setTranslationX(DefectType.FIXED);
+			if (this.rankDefect.estimateTranslationY() && countFixedY > 0)
+				this.rankDefect.setTranslationY(DefectType.FIXED);
+			if (this.rankDefect.estimateTranslationZ() && countFixedZ > 0)
+				this.rankDefect.setTranslationZ(DefectType.FIXED);
+			
+			if (!hasScaleBars && (countFixedX >= 2 || countFixedY >= 2 || countFixedZ >= 2))
+				this.rankDefect.setScale(DefectType.FIXED);
+			
+			//if (countFixedX >= 3 && countFixedY >= 3 && countFixedZ >= 3)
+			if (countFixedX > 0 && countFixedY > 0 && countFixedZ > 0 && 
+					(hasScaleBars && countFixedX + countFixedY + countFixedZ >= 6 || !hasScaleBars && countFixedX + countFixedY + countFixedZ >= 7)) {
+				this.rankDefect.setRotationX(DefectType.FIXED);
+				this.rankDefect.setRotationY(DefectType.FIXED);
+				this.rankDefect.setRotationZ(DefectType.FIXED);
+				
+				break;
 			}
 		}
 		
-//		for (int i = 0; i < this.unknownParameters.size(); i++) {
-//			UnknownParameter<?> unknownParameteri = this.unknownParameters.get(i);
-//			int row = unknownParameteri.getColumn();
-//			for (int j = i; j < this.unknownParameters.size(); j++) {
-//				UnknownParameter<?> unknownParameterj = this.unknownParameters.get(j);
-//				int column = unknownParameterj.getColumn();
+		if (this.rankDefect.estimateTranslationX() || this.rankDefect.estimateTranslationY() || this.rankDefect.estimateTranslationZ() ||
+				this.rankDefect.estimateRotationX() || this.rankDefect.estimateRotationY() || this.rankDefect.estimateRotationZ() ||
+				this.rankDefect.estimateScale()) {
+
+			for (Camera camera : this.cameras) {
+				for (Image image : camera) {
+					// add parameters of exterior orientation
+					ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
+					if (this.rankDefect.estimateRotationX() && exteriorOrientation.get(ParameterType.CAMERA_OMEGA).getColumn() == Integer.MAX_VALUE)
+						this.rankDefect.setRotationX(DefectType.FIXED);
+					if (this.rankDefect.estimateRotationY() && exteriorOrientation.get(ParameterType.CAMERA_PHI).getColumn() == Integer.MAX_VALUE)
+						this.rankDefect.setRotationY(DefectType.FIXED);
+					if (this.rankDefect.estimateRotationZ() && exteriorOrientation.get(ParameterType.CAMERA_KAPPA).getColumn() == Integer.MAX_VALUE)
+						this.rankDefect.setRotationZ(DefectType.FIXED);
+
+					countFixedX += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).getColumn() == Integer.MAX_VALUE ? 1 : 0;
+					countFixedY += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).getColumn() == Integer.MAX_VALUE ? 1 : 0;
+					countFixedZ += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).getColumn() == Integer.MAX_VALUE ? 1 : 0;
+
+					if (this.rankDefect.estimateTranslationX() && countFixedX > 0)
+						this.rankDefect.setTranslationX(DefectType.FIXED);
+					if (this.rankDefect.estimateTranslationY() && countFixedY > 0)
+						this.rankDefect.setTranslationY(DefectType.FIXED);
+					if (this.rankDefect.estimateTranslationZ() && countFixedZ > 0)
+						this.rankDefect.setTranslationZ(DefectType.FIXED);
+					
+					if (!hasScaleBars && (countFixedX >= 2 || countFixedY >= 2 || countFixedZ >= 2))
+						this.rankDefect.setScale(DefectType.FIXED);
+					
+					if (!this.rankDefect.estimateTranslationX() && !this.rankDefect.estimateTranslationY() && !this.rankDefect.estimateTranslationZ() &&
+						!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ() &&
+						!this.rankDefect.estimateScale())
+						break;
+
+					//if (countFixedX >= 3 && countFixedY >= 3 && countFixedZ >= 3)
+					if (countFixedX > 0 && countFixedY > 0 && countFixedZ > 0 && 
+							(hasScaleBars && countFixedX + countFixedY + countFixedZ >= 6 || !hasScaleBars && countFixedX + countFixedY + countFixedZ >= 7)) {
+						this.rankDefect.setRotationX(DefectType.FIXED);
+						this.rankDefect.setRotationY(DefectType.FIXED);
+						this.rankDefect.setRotationZ(DefectType.FIXED);
+						
+						break;
+					}
+				}
+				if (!this.rankDefect.estimateTranslationX() && !this.rankDefect.estimateTranslationY() && !this.rankDefect.estimateTranslationZ() &&
+						!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ() &&
+						!this.rankDefect.estimateScale())
+						break;
+			}
+		}
+	}
+	
+	private void applyPrecondition(UpperSymmBandMatrix V, UpperSymmPackMatrix M, Vector m) {
+		int size = V != null ? V.numRows() : 0;
+		for (int row = 0; row < size; row++) {
+			if (m != null)
+				m.set(row, V.get(row, row) * m.get(row));
+			if (M != null) 
+				for (int column = row; column < size; column++) 
+					M.set(row, column, V.get(column, column) * M.get(row, column) * V.get(row, row));
+		}
+	}
+	
+	private void applyPrecondition(NormalEquationSystem neq) {
+		UpperSymmBandMatrix V = neq.getPreconditioner();
+		UpperSymmPackMatrix M = neq.getMatrix();
+		Vector m              = neq.getVector();
+		this.applyPrecondition(V, M, m);
+//		this.applyPrecondition(neq.getPreconditioner(), neq.getMatrix());
+//		this.applyPrecondition(neq.getPreconditioner(), neq.getVector());
+	}
+
+//	/**
+//	 * Apply precondition to normal matrix
+//	 * @param V
+//	 * @param M
+//	 * @deprecated
+//	 */
+//	private void applyPrecondition(UpperSymmBandMatrix V, UpperSymmPackMatrix M) {
+//		for (int row = 0; row < M.numRows(); row++) {
+//			for (int column = row; column < M.numColumns(); column++) {
 //				M.set(row, column, V.get(column, column) * M.get(row, column) * V.get(row, row));
 //			}
 //		}
-	}
-	
-	private void applyPrecondition(UpperSymmBandMatrix V, Vector m) {
-		for (int row = 0; row < m.size(); row++) {
-			m.set(row, V.get(row, row) * m.get(row));
-		}
-		
-//		for (int i = 0; i < this.unknownParameters.size(); i++) {
-//			UnknownParameter<?> unknownParameteri = this.unknownParameters.get(i);
-//			int row = unknownParameteri.getColumn();
+//	}
+//	
+//	/**
+//	 * Apply precondition to right hand vector
+//	 * @param V
+//	 * @param m
+//	 * @deprecated
+//	 */
+//	private void applyPrecondition(UpperSymmBandMatrix V, Vector m) {
+//		for (int row = 0; row < m.size(); row++) {
 //			m.set(row, V.get(row, row) * m.get(row));
 //		}
-	}
+//	}
 
 	public Set<ObjectCoordinate> getObjectCoordinates() {
 		return this.objectCoordinates;
@@ -983,7 +1083,7 @@ public class BundleAdjustment {
 		int numberOfDatumConditions = this.rankDefect.getDefect();
 		int size = this.invertNormalEquationMatrix == MatrixInversion.REDUCED ? this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 : this.Qxx.numRows() - numberOfDatumConditions;
 		size = includeDatumConditions ? size + numberOfDatumConditions : size;
-		
+	System.out.println(includeDatumConditions ? 0 : numberOfDatumConditions);	
 		try {
 			pw = new PrintWriter(new BufferedWriter(new FileWriter( f )));
 			for (int i = includeDatumConditions ? 0 : numberOfDatumConditions; i < size; i++) {
