@@ -18,7 +18,11 @@ Thus, there is a lack of statistical parameters to evaluate the reliability of t
 that do not need such statistical parameters. However, a small number of applications exists that calls for a rigorous adjustment 
 and the fully populated dispersion matrix - especially, if the results of the bundle adjustment are treated as incoming data in 
 further analysis steps. For instance, in the framework of deformation analysis, the dispersion of the parameters is required to 
-obtain reliable test statistics.
+obtain reliable and almost unbiased test statistics. The following figure depict a comparison of the resulting uncertainties of coordinate components 
+X, Y, Z derived from four different stochastic models, i.e. identity matrix, diagonal matrix, block-diagonal matrix, fully populated matrix.
+The study shows that the uncertainties become too optimistic, if stochastic dependencies are neglected. 
+
+![Comparison of resulting uncertainties of coordinate components X, Y, Z derived from four different stochastic models, i.e. identity matrix, diagonal matrix, block-diagonal matrix, fully populated matrix](/.images/bundle_adjustment_impact_of_dispersion_matrix.png?raw=true "Impact of dispersion matrix on derived quantities")
 
 ## Metrology and Close-Range Photogrammetry
 In the field of metrology and close-range photogrammetry, usually marked points or special targets are used for precise measurements. 
