@@ -35,9 +35,7 @@ import no.uib.cipr.matrix.DenseVector;
 import no.uib.cipr.matrix.UpperSymmBandMatrix;
 import no.uib.cipr.matrix.UpperSymmPackMatrix;
 
-
 class PartialDerivativeFactory {
-
 	private PartialDerivativeFactory() {}
 
 	static double getMisclosure(ObservationParameter<?> observation) {
@@ -162,19 +160,21 @@ class PartialDerivativeFactory {
 		return 0;
 	}
 
-	static void getPartialDerivative(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ObservationParameter<?> observation) {
+	static GaussMarkovEquations getPartialDerivative(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ObservationParameter<?> observation) {
 		ParameterType observationParamType = observation.getParameterType();
 
 		if (observationParamType == ParameterType.IMAGE_COORDINATE_X) // ParameterType.IMAGE_COORDINATE_Y
-			getPartialDerivativeImageCoordinate(sigma2apriori, NEQ, neq, (ImageCoordinate)observation.getReference());
+			return getPartialDerivativeImageCoordinate(sigma2apriori, NEQ, neq, (ImageCoordinate)observation.getReference());
 		else if (observationParamType == ParameterType.SCALE_BAR_LENGTH)
-			getPartialDerivativeScaleBar(sigma2apriori, NEQ, neq, (ScaleBar)observation.getReference());
+			return getPartialDerivativeScaleBar(sigma2apriori, NEQ, neq, (ScaleBar)observation.getReference());
+		
+		return null;
 	}
 
-	private static void getPartialDerivativeScaleBar(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ScaleBar scaleBar) {
+	private static GaussMarkovEquations getPartialDerivativeScaleBar(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ScaleBar scaleBar) {
 		ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
 		ObjectCoordinate objectCoordinateB = scaleBar.getObjectCoordinateB();
-
+		
 		double XA = objectCoordinateA.getX().getValue();
 		double YA = objectCoordinateA.getY().getValue();
 		double ZA = objectCoordinateA.getZ().getValue();
@@ -193,7 +193,7 @@ class PartialDerivativeFactory {
 		double ay = dY/lengthAB;
 		double az = dZ/lengthAB;
 
-		DenseMatrix A = new DenseMatrix(1, NEQ.numColumns());
+		DenseMatrix A = new DenseMatrix(1, neq.size());
 		DenseVector w = new DenseVector(1);
 		UpperSymmBandMatrix P = new UpperSymmBandMatrix(1, 0);
 
@@ -247,17 +247,19 @@ class PartialDerivativeFactory {
 				int colAT = columns.get(columnATIdx);
 				double aT = A.get(row, colAT);
 				neq.add(colAT, aT * P.get(row, row) * w.get(row));
-
-				for (int columnAIdx = columnATIdx; columnAIdx < columns.size(); columnAIdx++) {
-					int colA = columns.get(columnAIdx);	
-					double a  = A.get(row, colA);
-					NEQ.add(colAT, colA, aT * P.get(row, row) * a);
+				if (NEQ != null) {
+					for (int columnAIdx = columnATIdx; columnAIdx < columns.size(); columnAIdx++) {
+						int colA = columns.get(columnAIdx);	
+						double a = A.get(row, colA);
+						NEQ.add(colAT, colA, aT * P.get(row, row) * a);
+					}
 				}
 			}	
 		}
+		return new GaussMarkovEquations(A, P, w);
 	}
 
-	private static void getPartialDerivativeImageCoordinate(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ImageCoordinate imageCoordinate) {
+	private static GaussMarkovEquations getPartialDerivativeImageCoordinate(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ImageCoordinate imageCoordinate) {
 
 		ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
 		Image image = imageCoordinate.getReference();
@@ -350,7 +352,7 @@ class PartialDerivativeFactory {
 
 		// 3 ... object point, 10 ... interior orientation, 6 ... exterior orientation, datum defect
 		DenseVector w = new DenseVector(2);
-		DenseMatrix A = new DenseMatrix(2, NEQ.numColumns());
+		DenseMatrix A = new DenseMatrix(2, neq.size());
 
 		UpperSymmBandMatrix P = new UpperSymmBandMatrix(2, 0);
 		P.set(0, 0, sigma2apriori/varianceX);
@@ -505,13 +507,16 @@ class PartialDerivativeFactory {
 				double aT = A.get(row, colAT);
 				neq.add(colAT, aT * P.get(row, row) * w.get(row));
 
-				for (int columnAIdx = columnATIdx; columnAIdx < columns.size(); columnAIdx++) {
-					int colA = columns.get(columnAIdx);	
-					double a  = A.get(row, colA);
-					NEQ.add(colAT, colA, aT * P.get(row, row) * a);
+				if (NEQ != null) {
+					for (int columnAIdx = columnATIdx; columnAIdx < columns.size(); columnAIdx++) {
+						int colA = columns.get(columnAIdx);	
+						double a = A.get(row, colA);
+						NEQ.add(colAT, colA, aT * P.get(row, row) * a);
+					}
 				}
 			}	
 		}
+		return new GaussMarkovEquations(A, P, w);
 	}
 
 }

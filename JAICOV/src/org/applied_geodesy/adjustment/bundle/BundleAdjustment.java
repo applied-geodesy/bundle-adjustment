@@ -51,6 +51,7 @@ import org.applied_geodesy.adjustment.defect.DefectType;
 import org.applied_geodesy.adjustment.defect.RankDefect;
 
 import no.uib.cipr.matrix.DenseVector;
+import no.uib.cipr.matrix.Matrix;
 import no.uib.cipr.matrix.MatrixNotSPDException;
 import no.uib.cipr.matrix.MatrixSingularException;
 import no.uib.cipr.matrix.UpperSymmBandMatrix;
@@ -89,14 +90,17 @@ public class BundleAdjustment {
 	private boolean interrupt                    = false,
 			applyAposterioriVarianceOfUnitWeight = true,
 			useCentroidedCoordinates             = true,
-			calculateStochasticParameters        = false;
+			calculateStochasticParameters        = false,
+			deriveFirstAdaptedDampingValue       = false;
 	
 	private MatrixInversion invertNormalEquationMatrix = MatrixInversion.FULL;
 
-	private double maxDx    = Double.MIN_VALUE,
-			omega           = 0.0,
-			currentMaxAbsDx = this.maxDx,
-			sigma2apriori   = 1.0;
+	private double maxAbsDx     = Double.MIN_VALUE,
+			omega               = 0.0,
+			lastValidmaxAbsDx   = 0.0,
+			dampingValue        = 0.0,
+			adaptedDampingValue = 0.0,
+			sigma2apriori       = 1.0;
 	
 	private ObjectCoordinate centroid = new ObjectCoordinate(this.getClass().getSimpleName(), 0, 0, 0);
 
@@ -182,15 +186,20 @@ public class BundleAdjustment {
 	public EstimationStateType estimateModel() {
 		this.currentEstimationStatus = EstimationStateType.BUSY;
 		this.change.firePropertyChange(this.currentEstimationStatus.name(), false, true);
+		
+		this.deriveFirstAdaptedDampingValue = this.dampingValue > 0;
+		this.adaptedDampingValue = 0;
 
-		this.maxDx = Double.MIN_VALUE;
-		this.currentMaxAbsDx = this.maxDx;
+		this.maxAbsDx          = 0.0;
+		this.lastValidmaxAbsDx = 0.0;
 
 		int runs = this.maximalNumberOfIterations-1;
 		boolean isEstimated = false, estimateCompleteModel = false, isConverge = true;
 
-		if (this.maximalNumberOfIterations == 0)
+		if (this.maximalNumberOfIterations == 0) {
 			estimateCompleteModel = isEstimated = true;
+			this.adaptedDampingValue = 0;
+		}
 
 		this.sigma2apriori = this.sigma2apriori > 0 ? this.sigma2apriori : 1.0;
 
@@ -199,16 +208,8 @@ public class BundleAdjustment {
 			this.centroidCoordinates(false);
 		
 		try {
-			// Reset aller Iterationseinstellungen
-			this.maxDx = Double.MIN_VALUE;
-			this.currentMaxAbsDx = this.maxDx;
-			runs = this.maximalNumberOfIterations - 1;
-			isEstimated = false;
-			estimateCompleteModel = false;
-			isConverge = true;
-
 			do {
-				this.maxDx = Double.MIN_VALUE;
+				this.maxAbsDx      = 0.0;
 				this.iterationStep = this.maximalNumberOfIterations-runs;
 				this.currentEstimationStatus = EstimationStateType.ITERATE;
 				this.change.firePropertyChange(this.currentEstimationStatus.name(), this.maximalNumberOfIterations, this.iterationStep);
@@ -292,21 +293,21 @@ public class BundleAdjustment {
 					return this.currentEstimationStatus;
 				}
 
-				if (Double.isInfinite(this.maxDx) || Double.isNaN(this.maxDx)) {
+				if (Double.isInfinite(this.maxAbsDx) || Double.isNaN(this.maxAbsDx)) {
 					this.currentEstimationStatus = EstimationStateType.SINGULAR_MATRIX;
 					this.change.firePropertyChange(this.currentEstimationStatus.name(), false, true);
 					return this.currentEstimationStatus;
 				}
-				else if (this.maxDx <= SQRT_EPS && runs > 0) {
+				else if (this.maxAbsDx <= SQRT_EPS && runs > 0 && this.adaptedDampingValue == 0) {
 					isEstimated = true;
 					this.currentEstimationStatus = EstimationStateType.CONVERGENCE;
 					//if (this.estimationType != EstimationType.UNSCENTED_TRANSFORMATION)
-					this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxDx);
+					this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxAbsDx);
 				}
 				else if (runs-- <= 1) {
 					if (estimateCompleteModel) {
 						this.currentEstimationStatus = EstimationStateType.NO_CONVERGENCE;
-						this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxDx);
+						this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxAbsDx);
 						isConverge = false;
 					}
 					isEstimated = true;
@@ -314,14 +315,11 @@ public class BundleAdjustment {
 				else {
 					this.currentEstimationStatus = EstimationStateType.CONVERGENCE;
 					//if (this.estimationType != EstimationType.UNSCENTED_TRANSFORMATION)
-					this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxDx);
+					this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxAbsDx);
 				}
-
-				// Sollten nur stochastische Punkte enthalten sein, ist maxDx MIN_VALUE
-				if (this.maxDx > Double.MIN_VALUE)
-					this.currentMaxAbsDx = this.maxDx;
-				else
-					this.maxDx = this.currentMaxAbsDx;
+				
+				if (isEstimated || this.adaptedDampingValue <= SQRT_EPS || runs < this.maximalNumberOfIterations * 0.5 + 1)
+					this.adaptedDampingValue = 0.0;
 			}
 			while (!estimateCompleteModel);
 			
@@ -342,29 +340,115 @@ public class BundleAdjustment {
 
 		if (!isConverge) {
 			this.currentEstimationStatus = EstimationStateType.NO_CONVERGENCE;
-			this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxDx);
+			this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxAbsDx);
 		}
 		else if (this.currentEstimationStatus.getId() == EstimationStateType.BUSY.getId() || this.calculateStochasticParameters) {
 			this.currentEstimationStatus = EstimationStateType.ERROR_FREE_ESTIMATION;
-			this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxDx);
+			this.change.firePropertyChange(this.currentEstimationStatus.name(), SQRT_EPS, this.maxAbsDx);
 		}
 
 		return this.currentEstimationStatus;
 	}
 	
 	private void updateModel(Vector dx, boolean updateCompleteModel) {
-		this.omega = 0;
-		for (UnknownParameter<?> unknownParameter : this.unknownParameters) {
-			int column = unknownParameter.getColumn();
-			this.maxDx = Math.max(this.maxDx, Math.abs(dx.get(column))); 
-			unknownParameter.setValue(unknownParameter.getValue() + dx.get(column));
+		if (this.adaptedDampingValue > 0) {
+			// reduce the step length
+			double alpha = 0.25 * Math.pow(this.adaptedDampingValue, -0.05);
+			alpha = Math.min(alpha, 0.75);
+			dx.scale(alpha);
+			
+			double prevOmega = this.omega;
+			double curOmega  = this.getOmega(dx);
+			prevOmega = prevOmega <= 0 ? Double.MAX_VALUE : prevOmega;
+			// Check if the current solution converts - if not, reject
+			boolean lmaConverge = prevOmega >= curOmega;
+			this.omega = curOmega;
+			double lastAdaptedDampingValue = this.adaptedDampingValue;
+			if (lmaConverge) {
+				this.adaptedDampingValue *= 0.2;
+			}
+			else {
+				this.adaptedDampingValue *= 5.0;
+				
+				// To avoid infinity
+				if (this.adaptedDampingValue > 1.0/SQRT_EPS) {
+					this.adaptedDampingValue = 1.0/SQRT_EPS;
+					// force an update within the next iteration 
+					this.omega = 0.0;
+				}
+			}
+			
+			this.currentEstimationStatus = EstimationStateType.LEVENBERG_MARQUARDT_STEP;
+			this.change.firePropertyChange(this.currentEstimationStatus.name(), lastAdaptedDampingValue, this.adaptedDampingValue);
+			
+			if (!lmaConverge) {
+				// Current solution is NOT an improvement --> cancel procedure
+				this.maxAbsDx = this.lastValidmaxAbsDx;
+				dx.zero();
+				return;
+			}
 		}
+		
+		// updating model parameters --> estimated maxAbsDx
+		this.maxAbsDx = this.updateUnknownParameters(dx);
+		this.lastValidmaxAbsDx = this.maxAbsDx;
+		
 		if (updateCompleteModel) {
+			this.omega = 0.0;
 			for (ObservationParameter<?> observation : this.observations) {
 				double v = this.estimationType == EstimationType.SIMULATION ? 0.0 :  PartialDerivativeFactory.getMisclosure(observation);
 				this.omega += v * v * this.sigma2apriori / observation.getVariance();
 			}
 		}
+	}
+	
+	/**
+	 * Perform update of the model parameters
+	 * X = X0 + dx
+	 * @param dx
+	 * @return max(|dx|)
+	 */
+	private double updateUnknownParameters(Vector dx) {
+		double maxAbsDx = 0;
+		for (UnknownParameter<?> unknownParameter : this.unknownParameters) {
+			int column = unknownParameter.getColumn();
+			if (column >= 0 && column < Integer.MAX_VALUE) {
+				double value  = unknownParameter.getValue();
+				double dvalue = dx.get(column);
+				maxAbsDx = Math.max(Math.abs(dvalue), maxAbsDx);
+				unknownParameter.setValue(value + dvalue);
+			}
+		}
+		return maxAbsDx;
+	}
+	
+	/**
+	 * Estimates the residuals of the misclosures v = A*dx - w
+	 * and returns omega = v'*P*v
+	 * 
+	 * 
+	 * @param dx
+	 * @return omega = v'*P*v
+	 */
+	private double getOmega(Vector dx) {
+		double omega = 0.0;
+		
+		for (ObservationParameter<?> observation : this.observations) {
+			GaussMarkovEquations APw = PartialDerivativeFactory.getPartialDerivative(this.sigma2apriori, null, new DenseVector(dx.size()), observation);
+			if (APw == null)
+				continue;
+			
+			Matrix A = APw.getJacobian();
+			Matrix P = APw.getWeights();
+			Vector v = APw.getgetMisclosure();
+			// multAdd: y = alpha*A*x + y
+			A.multAdd(-1, dx, v);
+			Vector Pv = new DenseVector(v.size());
+			P.mult(v, Pv);
+
+			omega += v.dot(Pv);
+		}
+		return omega;
 	}
 
 //	private void addDatumConditionColumns(UpperSymmPackMatrix N) {
@@ -800,6 +884,29 @@ public class BundleAdjustment {
 
 		this.addDatumConditionRows(N);
 		
+		if (this.deriveFirstAdaptedDampingValue) {
+//			double maxElement = 0;
+//			for (UnknownParameter<?> unknownParameter : this.unknownParameters) {
+//				int column = unknownParameter.getColumn();
+//				if (column < 0)
+//					continue;
+//				maxElement = Math.max(maxElement, N.get(column, column));
+//			}
+			// derive first damping value for LMA
+			this.adaptedDampingValue = this.dampingValue;// * maxElement;
+			this.deriveFirstAdaptedDampingValue = false;
+		}
+		
+		if (this.adaptedDampingValue > 0) {
+			for (UnknownParameter<?> unknownParameter : this.unknownParameters) {
+				int column = unknownParameter.getColumn();
+				if (column < 0)
+					continue;
+				N.add(column, column, this.adaptedDampingValue * N.get(column, column));
+				//N.add(column, column, this.adaptedDampingValue);
+			}
+		}
+		
 		// Preconditioner == Root of the main diagonal
 		for (int column = 0; column < N.numColumns(); column++) {
 			double value = N.get(column, column);
@@ -1083,7 +1190,7 @@ public class BundleAdjustment {
 		int numberOfDatumConditions = this.rankDefect.getDefect();
 		int size = this.invertNormalEquationMatrix == MatrixInversion.REDUCED ? this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 : this.Qxx.numRows() - numberOfDatumConditions;
 		size = includeDatumConditions ? size + numberOfDatumConditions : size;
-	System.out.println(includeDatumConditions ? 0 : numberOfDatumConditions);	
+
 		try {
 			pw = new PrintWriter(new BufferedWriter(new FileWriter( f )));
 			for (int i = includeDatumConditions ? 0 : numberOfDatumConditions; i < size; i++) {
@@ -1111,6 +1218,14 @@ public class BundleAdjustment {
 	
 	public void applyAposterioriVarianceOfUnitWeight(boolean applyAposterioriVarianceOfUnitWeight) {
 		this.applyAposterioriVarianceOfUnitWeight = applyAposterioriVarianceOfUnitWeight;
+	}
+	
+	public void setLevenbergMarquardtDampingValue(double lambda) {
+		this.dampingValue = Math.abs(lambda);
+	}
+	
+	public double getLevenbergMarquardtDampingValue() {
+		return this.dampingValue;
 	}
 	
 	private void reduceNormalEquationMatrix(NormalEquationSystem neq) throws IllegalArgumentException, MatrixSingularException {
