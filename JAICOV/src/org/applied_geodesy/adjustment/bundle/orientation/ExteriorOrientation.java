@@ -25,13 +25,17 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.applied_geodesy.adjustment.bundle.Image;
+import org.applied_geodesy.adjustment.bundle.Referenceable;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
-public class ExteriorOrientation implements Iterable<UnknownParameter<ExteriorOrientation>> {
+public class ExteriorOrientation implements Referenceable<Image>, Iterable<UnknownParameter<ExteriorOrientation>> {
+	private final Image image;
 	private Map<ParameterType, UnknownParameter<ExteriorOrientation>> params = new LinkedHashMap<ParameterType, UnknownParameter<ExteriorOrientation>>(6);
-
-	public ExteriorOrientation() {
+	
+	public ExteriorOrientation(Image image) {
+		this.image = image;
 		this.params.put(ParameterType.CAMERA_COORDINATE_X, new UnknownParameter<ExteriorOrientation>(ParameterType.CAMERA_COORDINATE_X, this));
 		this.params.put(ParameterType.CAMERA_COORDINATE_Y, new UnknownParameter<ExteriorOrientation>(ParameterType.CAMERA_COORDINATE_Y, this));
 		this.params.put(ParameterType.CAMERA_COORDINATE_Z, new UnknownParameter<ExteriorOrientation>(ParameterType.CAMERA_COORDINATE_Z, this));
@@ -84,9 +88,14 @@ public class ExteriorOrientation implements Iterable<UnknownParameter<ExteriorOr
 	public Iterator<UnknownParameter<ExteriorOrientation>> iterator() {
 		return params.values().iterator();
 	}
+	
+	@Override
+	public Image getReference() {
+		return this.image;
+	}
 
 	@Override
 	public String toString() {
-		return "ExteriorOrientation [params=" + params + "]";
+		return "ExteriorOrientation [params=" + this.params + "]";
 	}
 }

@@ -1313,6 +1313,10 @@ public class BundleAdjustment {
 		}
 	}
 	
+	public void interrupt() {
+		this.interrupt = true;
+	}
+	
 	public void addPropertyChangeListener(PropertyChangeListener listener) {
 		this.change.addPropertyChangeListener(listener);
 	}
