@@ -40,4 +40,9 @@ abstract class Parameter {
 	public double getValue() {
 		return this.value;
 	}
+
+	@Override
+	public String toString() {
+		return "Parameter [parameterType=" + parameterType + ", value=" + value + "]";
+	}
 }

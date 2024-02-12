@@ -84,4 +84,9 @@ public class ExteriorOrientation implements Iterable<UnknownParameter<ExteriorOr
 	public Iterator<UnknownParameter<ExteriorOrientation>> iterator() {
 		return params.values().iterator();
 	}
+
+	@Override
+	public String toString() {
+		return "ExteriorOrientation [params=" + params + "]";
+	}
 }

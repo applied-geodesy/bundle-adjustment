@@ -81,4 +81,9 @@ public class Camera implements Iterable<Image> {
 	public Iterator<Image> iterator() {
 		return this.images.values().iterator();
 	}
+
+	@Override
+	public String toString() {
+		return "Camera [id=" + id + ", r0=" + r0 + ", images=" + images.size() + "]";
+	}
 }

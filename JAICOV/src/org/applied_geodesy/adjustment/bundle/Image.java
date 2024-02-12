@@ -75,4 +75,9 @@ public class Image implements Referenceable<Camera>, Iterable<ImageCoordinate> {
 	public Iterator<ImageCoordinate> iterator() {
 		return this.imageCoordinates.values().iterator();
 	}
+
+	@Override
+	public String toString() {
+		return "Image [id=" + id + ", camera=" + camera.getId() + "]";
+	}
 }
