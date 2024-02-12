@@ -306,6 +306,14 @@ public class AICONReportFileReader extends SourceFileReader<BundleAdjustment> {
 		double value  = Double.parseDouble(columns[1].trim());
 		boolean fixed = columns[2].trim().matches("\\w+"); // columns[2].equalsIgnoreCase("fest");
 
+		// distance-dependent distortion not supported by AICON yet
+		this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D1).setValue(0.0);
+		this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D1).setColumn(Integer.MAX_VALUE);
+		this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D2).setValue(0.0);
+		this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D2).setColumn(Integer.MAX_VALUE);
+		this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D3).setValue(0.0);
+		this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D3).setColumn(Integer.MAX_VALUE);
+
 		switch(type) {
 		case "Ck":
 			this.camera.getInteriorOrientation().get(ParameterType.PRINCIPAL_DISTANCE).setValue(-value);
@@ -346,6 +354,18 @@ public class AICONReportFileReader extends SourceFileReader<BundleAdjustment> {
 		case "C2":
 			this.camera.getInteriorOrientation().get(ParameterType.AFFINITY_AND_SHEAR_C2).setValue(value);
 			this.camera.getInteriorOrientation().get(ParameterType.AFFINITY_AND_SHEAR_C2).setColumn(fixed ? Integer.MAX_VALUE : -1);
+			break;
+		case "AZ1":
+			this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D1).setValue(value);
+			this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D1).setColumn(fixed ? Integer.MAX_VALUE : -1);
+			break;
+		case "AZ2":
+			this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D2).setValue(value);
+			this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D2).setColumn(fixed ? Integer.MAX_VALUE : -1);
+			break;
+		case "AZ3":
+			this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D3).setValue(value);
+			this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D3).setColumn(fixed ? Integer.MAX_VALUE : -1);
 			break;
 		}
 	}

@@ -92,5 +92,11 @@ public class ObjectCoordinate implements Iterable<Image> {
 	public Iterator<Image> iterator() {
 		return this.images.iterator();
 	}
+
+	@Override
+	public String toString() {
+		return "ObjectCoordinate [name=" + this.name + ", datum=" + this.datum + ", x=" + this.x.getValue() + ", y=" + this.y.getValue() + ", z=" + this.z.getValue() + ", images=" + images.size() + "]";
+	}
+	
 }
 

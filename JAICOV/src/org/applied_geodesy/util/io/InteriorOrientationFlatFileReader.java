@@ -67,34 +67,35 @@ public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 	public void parse(String line) {
 		line = line.trim();
 		try {
-			
-			
-		    // 1 7.244192e-003	1.164305e-001	2.868147e+001	-1.097712e-004	1.535086e-007	0.000000e+000	8.273977e-006	-1.054657e-005	-7.008010e-005	-3.126270e-005
+		    // 1 7.244192e-003	1.164305e-001	2.868147e+001	-1.097712e-004	1.535086e-007	0.000000e+000	8.273977e-006	-1.054657e-005	-7.008010e-005	-3.126270e-005	0.000000e+000	0.000000e+000	0.000000e+000
 			
 			String columns[] = line.split("\\s+");
-			if (columns.length < 11)
+			if (columns.length < 14)
 				return;
-			
 			
 			long camid = Long.parseLong(columns[0].trim());
 
 			if (camid != this.camera.getId())
 				throw new IllegalArgumentException("Error, camera-id mismatch: " + this.camera.getId() + " vs. " + camid + "!");
 
-			double x0 = Double.parseDouble(columns[1].trim());
-			double y0 = Double.parseDouble(columns[2].trim());
-			double c  = Double.parseDouble(columns[3].trim());
+			int col = 0;
+			double x0 = Double.parseDouble(columns[col++].trim());
+			double y0 = Double.parseDouble(columns[col++].trim());
+			double c  = Double.parseDouble(columns[col++].trim());
 
-			double A1 = Double.parseDouble(columns[4].trim());
-			double A2 = Double.parseDouble(columns[5].trim());
-			double A3 = Double.parseDouble(columns[6].trim());
+			double A1 = Double.parseDouble(columns[col++].trim());
+			double A2 = Double.parseDouble(columns[col++].trim());
+			double A3 = Double.parseDouble(columns[col++].trim());
 
-			double B1 = Double.parseDouble(columns[7].trim());
-			double B2 = Double.parseDouble(columns[8].trim());
+			double B1 = Double.parseDouble(columns[col++].trim());
+			double B2 = Double.parseDouble(columns[col++].trim());
 
-			double C1 = Double.parseDouble(columns[9].trim());
-			double C2 = Double.parseDouble(columns[10].trim());
-
+			double C1 = Double.parseDouble(columns[col++].trim());
+			double C2 = Double.parseDouble(columns[col++].trim());
+			
+			double D1 = Double.parseDouble(columns[col++].trim());
+			double D2 = Double.parseDouble(columns[col++].trim());
+			double D3 = Double.parseDouble(columns[col++].trim());
 
 			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 			interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X).setValue(x0);
@@ -114,10 +115,15 @@ public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).setValue(C2);
 			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).setColumn(Integer.MAX_VALUE);
 			
+			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).setValue(D1);
+			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).setColumn(Integer.MAX_VALUE);
+			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).setValue(D2);
+			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).setColumn(Integer.MAX_VALUE);
+			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).setValue(D3);
+			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).setColumn(Integer.MAX_VALUE);
 		}
 		catch (Exception err) {
 			err.printStackTrace();
-			// nichts, Beobachtung unbrauchbar...
 			return;
 		}	
 	}

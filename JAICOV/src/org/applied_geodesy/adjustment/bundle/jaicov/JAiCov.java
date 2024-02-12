@@ -32,6 +32,7 @@ import org.applied_geodesy.adjustment.EstimationType;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment.MatrixInversion;
+import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.Camera;
 import org.applied_geodesy.adjustment.bundle.Image;
 import org.applied_geodesy.adjustment.bundle.ImageCoordinate;
@@ -124,6 +125,14 @@ public class JAiCov implements PropertyChangeListener {
 				}
 				String formattedStr = String.format(Locale.ENGLISH, template, objectCoordinate.getName(), x, y, z, ux, uy, uz, datum);
 				System.out.println(formattedStr);
+			}
+			
+			for (Camera camera : cameras) {
+				InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
+				for (UnknownParameter<InteriorOrientation> interiorOrientationParameter : interiorOrientation) {
+					System.out.println(String.format(Locale.ENGLISH, "%-25s = %+12.8f %s", interiorOrientationParameter.getParameterType().name(), interiorOrientationParameter.getValue(), interiorOrientationParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
+				}
+				System.out.println();
 			}
 
 			// print some statistical parameters

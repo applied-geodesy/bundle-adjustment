@@ -47,6 +47,13 @@ public enum ParameterType {
 	/** Affinitaet und Scherung C2 **/
 	AFFINITY_AND_SHEAR_C2(142),
 	
+	/** Polynomkoeffizient der streckenabhaenigen Verzeichnung D1 **/
+	DISTANCE_DISTORTION_D1(151),
+	/** Polynomkoeffizient der streckenabhaenigen Verzeichnung D2 **/
+	DISTANCE_DISTORTION_D2(152),
+	/** Polynomkoeffizient der streckenabhaenigen Verzeichnung D3 **/
+	DISTANCE_DISTORTION_D3(153),
+	
 	/** Koordinate der Kamera X0 **/
 	CAMERA_COORDINATE_X(251),
 	/** Koordinate der Kamera Y0 **/

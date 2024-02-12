@@ -46,6 +46,10 @@ public class InteriorOrientation implements Iterable<UnknownParameter<InteriorOr
 		
 		this.params.put(ParameterType.AFFINITY_AND_SHEAR_C1, new UnknownParameter<InteriorOrientation>(ParameterType.AFFINITY_AND_SHEAR_C1, this));
 		this.params.put(ParameterType.AFFINITY_AND_SHEAR_C2, new UnknownParameter<InteriorOrientation>(ParameterType.AFFINITY_AND_SHEAR_C2, this));
+	
+		this.params.put(ParameterType.DISTANCE_DISTORTION_D1, new UnknownParameter<InteriorOrientation>(ParameterType.DISTANCE_DISTORTION_D1, this));
+		this.params.put(ParameterType.DISTANCE_DISTORTION_D2, new UnknownParameter<InteriorOrientation>(ParameterType.DISTANCE_DISTORTION_D2, this));
+		this.params.put(ParameterType.DISTANCE_DISTORTION_D3, new UnknownParameter<InteriorOrientation>(ParameterType.DISTANCE_DISTORTION_D3, this));	
 	}
 	
 	public UnknownParameter<InteriorOrientation> get(ParameterType parameterType) {
@@ -55,5 +59,10 @@ public class InteriorOrientation implements Iterable<UnknownParameter<InteriorOr
 	@Override
 	public Iterator<UnknownParameter<InteriorOrientation>> iterator() {
 		return params.values().iterator();
+	}
+
+	@Override
+	public String toString() {
+		return "InteriorOrientation [params=" + params + "]";
 	}
 }

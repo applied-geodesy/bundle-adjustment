@@ -58,4 +58,9 @@ public class ImageCoordinate implements Referenceable<Image> {
 	public Image getReference() {
 		return this.image;
 	}
+
+	@Override
+	public String toString() {
+		return "ImageCoordinate [name=" + this.objectCoordinate.getName() + ", x=" + this.x.getValue() + ", y=" + this.y.getValue() + ", image=" + this.image.getId() + ", ]";
+	}
 }
