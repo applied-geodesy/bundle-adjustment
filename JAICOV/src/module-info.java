@@ -23,6 +23,7 @@ module org.applied_geodesy.jaicov {
 	exports org.applied_geodesy.util.io;
 	exports org.applied_geodesy.adjustment;
 	exports org.applied_geodesy.adjustment.bundle;
+	exports org.applied_geodesy.adjustment.bundle.dlt;
 	exports org.applied_geodesy.adjustment.bundle.parameter;
 	exports org.applied_geodesy.adjustment.bundle.orientation;
 
