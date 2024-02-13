@@ -24,6 +24,7 @@ package org.applied_geodesy.adjustment;
 import no.uib.cipr.matrix.DenseVector;
 import no.uib.cipr.matrix.UpperSymmBandMatrix;
 import no.uib.cipr.matrix.UpperSymmPackMatrix;
+import no.uib.cipr.matrix.Vector;
 
 public class NormalEquationSystem {
 	private final UpperSymmPackMatrix N;
@@ -65,5 +66,27 @@ public class NormalEquationSystem {
 	
 	public UpperSymmBandMatrix getPreconditioner() {
 		return this.V;
+	}
+	
+	public void applyPrecondition() {
+		applyPrecondition(this);
+	}
+	
+	public static void applyPrecondition(NormalEquationSystem neq) {
+		UpperSymmBandMatrix V = neq.getPreconditioner();
+		UpperSymmPackMatrix M = neq.getMatrix();
+		Vector m              = neq.getVector();
+		applyPrecondition(V, M, m);
+	}
+
+	public static void applyPrecondition(UpperSymmBandMatrix V, UpperSymmPackMatrix M, Vector m) {
+		int size = V != null ? V.numRows() : 0;
+		for (int row = 0; row < size; row++) {
+			if (m != null)
+				m.set(row, V.get(row, row) * m.get(row));
+			if (M != null) 
+				for (int column = row; column < size; column++) 
+					M.set(row, column, V.get(column, column) * M.get(row, column) * V.get(row, row));
+		}
 	}
 }

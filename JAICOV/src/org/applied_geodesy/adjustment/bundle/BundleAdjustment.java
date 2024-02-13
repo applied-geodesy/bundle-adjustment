@@ -218,7 +218,7 @@ public class BundleAdjustment {
 				NormalEquationSystem neq = this.createNormalEquation();
 
 				// Nutze Vorkonditionierung
-				this.applyPrecondition(neq);
+				NormalEquationSystem.applyPrecondition(neq);
 
 				if (this.interrupt || neq == null) {
 					this.currentEstimationStatus = EstimationStateType.INTERRUPT;
@@ -252,7 +252,7 @@ public class BundleAdjustment {
 							MathExtension.solve(N, n, this.invertNormalEquationMatrix == MatrixInversion.FULL);
 						}
 
-						this.applyPrecondition(neq.getPreconditioner(), N, dx);
+						NormalEquationSystem.applyPrecondition(neq.getPreconditioner(), N, dx);
 						this.Qxx = N;
 
 
@@ -264,7 +264,7 @@ public class BundleAdjustment {
 					else {
 						// Solve Nx = n in-place, i.e., n <-- dx 
 						MathExtension.solve(N, n, false);
-						this.applyPrecondition(neq.getPreconditioner(), null, dx);
+						NormalEquationSystem.applyPrecondition(neq.getPreconditioner(), null, dx);
 					}
 
 					n = null;
@@ -1015,52 +1015,6 @@ public class BundleAdjustment {
 		}
 	}
 	
-	private void applyPrecondition(UpperSymmBandMatrix V, UpperSymmPackMatrix M, Vector m) {
-		int size = V != null ? V.numRows() : 0;
-		for (int row = 0; row < size; row++) {
-			if (m != null)
-				m.set(row, V.get(row, row) * m.get(row));
-			if (M != null) 
-				for (int column = row; column < size; column++) 
-					M.set(row, column, V.get(column, column) * M.get(row, column) * V.get(row, row));
-		}
-	}
-	
-	private void applyPrecondition(NormalEquationSystem neq) {
-		UpperSymmBandMatrix V = neq.getPreconditioner();
-		UpperSymmPackMatrix M = neq.getMatrix();
-		Vector m              = neq.getVector();
-		this.applyPrecondition(V, M, m);
-//		this.applyPrecondition(neq.getPreconditioner(), neq.getMatrix());
-//		this.applyPrecondition(neq.getPreconditioner(), neq.getVector());
-	}
-
-//	/**
-//	 * Apply precondition to normal matrix
-//	 * @param V
-//	 * @param M
-//	 * @deprecated
-//	 */
-//	private void applyPrecondition(UpperSymmBandMatrix V, UpperSymmPackMatrix M) {
-//		for (int row = 0; row < M.numRows(); row++) {
-//			for (int column = row; column < M.numColumns(); column++) {
-//				M.set(row, column, V.get(column, column) * M.get(row, column) * V.get(row, row));
-//			}
-//		}
-//	}
-//	
-//	/**
-//	 * Apply precondition to right hand vector
-//	 * @param V
-//	 * @param m
-//	 * @deprecated
-//	 */
-//	private void applyPrecondition(UpperSymmBandMatrix V, Vector m) {
-//		for (int row = 0; row < m.size(); row++) {
-//			m.set(row, V.get(row, row) * m.get(row));
-//		}
-//	}
-
 	public Set<ObjectCoordinate> getObjectCoordinates() {
 		return this.objectCoordinates;
 	}
