@@ -25,13 +25,18 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.applied_geodesy.adjustment.bundle.Camera;
+import org.applied_geodesy.adjustment.bundle.Referenceable;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
-public class InteriorOrientation implements Iterable<UnknownParameter<InteriorOrientation>> {
+public class InteriorOrientation implements Referenceable<Camera>, Iterable<UnknownParameter<InteriorOrientation>> {
+	private final Camera camera;
 	private Map<ParameterType, UnknownParameter<InteriorOrientation>> params = new LinkedHashMap<ParameterType, UnknownParameter<InteriorOrientation>>(10);
 	
-	public InteriorOrientation() {
+	public InteriorOrientation(Camera camera) {
+		this.camera = camera;
+		
 		this.params.put(ParameterType.PRINCIPAL_POINT_X,  new UnknownParameter<InteriorOrientation>(ParameterType.PRINCIPAL_POINT_X, this));
 		this.params.put(ParameterType.PRINCIPAL_POINT_Y,  new UnknownParameter<InteriorOrientation>(ParameterType.PRINCIPAL_POINT_Y, this));
 		
@@ -60,9 +65,14 @@ public class InteriorOrientation implements Iterable<UnknownParameter<InteriorOr
 	public Iterator<UnknownParameter<InteriorOrientation>> iterator() {
 		return params.values().iterator();
 	}
+	
+	@Override
+	public Camera getReference() {
+		return this.camera;
+	}
 
 	@Override
 	public String toString() {
-		return "InteriorOrientation [params=" + params + "]";
+		return "InteriorOrientation [params=" + this.params + "]";
 	}
 }

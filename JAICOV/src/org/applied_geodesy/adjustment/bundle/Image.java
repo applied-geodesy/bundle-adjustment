@@ -31,7 +31,7 @@ public class Image implements Referenceable<Camera>, Iterable<ImageCoordinate> {
 	private final long id;
 	private final Camera camera;
 	
-	private ExteriorOrientation exteriorOrientation = new ExteriorOrientation();
+	private ExteriorOrientation exteriorOrientation = new ExteriorOrientation(this);
 	private Map<ObjectCoordinate, ImageCoordinate> imageCoordinates = new LinkedHashMap<ObjectCoordinate, ImageCoordinate>();
 	
 	Image(long id, Camera camera) {

@@ -30,7 +30,7 @@ import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
 public class Camera implements Iterable<Image> {
 	private final long id;
 	private final double r0;
-	private InteriorOrientation interiorOrientation = new InteriorOrientation();
+	private InteriorOrientation interiorOrientation = new InteriorOrientation(this);
 	private Map<Long, Image> images = new LinkedHashMap<Long, Image>();
 	
 	public Camera(long id, double r0) {
