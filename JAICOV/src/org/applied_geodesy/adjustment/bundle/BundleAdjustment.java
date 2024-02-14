@@ -214,10 +214,10 @@ public class BundleAdjustment {
 				this.currentEstimationStatus = EstimationStateType.ITERATE;
 				this.change.firePropertyChange(this.currentEstimationStatus.name(), this.maximalNumberOfIterations, this.iterationStep);
 
-				// erzeuge Normalgleichung
+				// create normal equation system
 				NormalEquationSystem neq = this.createNormalEquation();
 
-				// Nutze Vorkonditionierung
+				// apply pre-condition to normal equation system
 				NormalEquationSystem.applyPrecondition(neq);
 
 				if (this.interrupt || neq == null) {
@@ -1190,7 +1190,7 @@ public class BundleAdjustment {
 	private void reduceNormalEquationMatrix(NormalEquationSystem neq, Camera camera) throws IllegalArgumentException, MatrixSingularException {
 		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 		
-		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(10);
+		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(13);
 		for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
 			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
 				continue;
@@ -1206,7 +1206,7 @@ public class BundleAdjustment {
 		DenseVector n = neq.getVector();
 		
 		ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
-		List<UnknownParameter<ExteriorOrientation>> unknownExteriorOrientation = new ArrayList<UnknownParameter<ExteriorOrientation>>(10);
+		List<UnknownParameter<ExteriorOrientation>> unknownExteriorOrientation = new ArrayList<UnknownParameter<ExteriorOrientation>>(6);
 		
 		for (UnknownParameter<ExteriorOrientation> unknownParameter : exteriorOrientation) {
 			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
