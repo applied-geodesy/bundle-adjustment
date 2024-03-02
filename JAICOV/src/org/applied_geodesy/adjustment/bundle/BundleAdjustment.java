@@ -203,7 +203,7 @@ public class BundleAdjustment {
 
 		this.sigma2apriori = this.sigma2apriori > 0 ? this.sigma2apriori : 1.0;
 
-		this.prepareUnknwonParameters();
+		this.prepareUnknownParameters();
 		if (this.useCentroidedCoordinates)
 			this.centroidCoordinates(false);
 		
@@ -769,7 +769,7 @@ public class BundleAdjustment {
 		this.scaleBars.add(scaleBar);
 	}
 	
-	private void prepareUnknwonParameters() {
+	private void prepareUnknownParameters() {
 		for (Camera camera : this.cameras) {
 			// add parameters of interior orientation
 			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
