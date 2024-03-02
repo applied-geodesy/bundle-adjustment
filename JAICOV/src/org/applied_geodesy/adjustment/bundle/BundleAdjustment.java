@@ -109,8 +109,8 @@ public class BundleAdjustment {
 	private RankDefect rankDefect = new RankDefect();
 
 	private List<Camera> cameras = new ArrayList<Camera>();
-	private List<ObservationParameter<?>> observations = new ArrayList<ObservationParameter<?>>();
-	private List<UnknownParameter<?>> unknownParameters = new ArrayList<UnknownParameter<?>>();
+	private Set<ObservationParameter<?>> observations = new LinkedHashSet<ObservationParameter<?>>();
+	private Set<UnknownParameter<?>> unknownParameters = new LinkedHashSet<UnknownParameter<?>>();
 	private Map<UnknownParameter<?>, LinkedHashSet<ObservationParameter<?>>> observationsOfUnknownParameters = new LinkedHashMap<UnknownParameter<?>, LinkedHashSet<ObservationParameter<?>>>();
 	private Set<ObjectCoordinate> objectCoordinates = new LinkedHashSet<ObjectCoordinate>();
 	private Set<ScaleBar> scaleBars = new LinkedHashSet<ScaleBar>();
