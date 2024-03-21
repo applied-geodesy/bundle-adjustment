@@ -78,7 +78,7 @@ public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 			if (camid != this.camera.getId())
 				throw new IllegalArgumentException("Error, camera-id mismatch: " + this.camera.getId() + " vs. " + camid + "!");
 
-			int col = 0;
+			int col = 1;
 			double x0 = Double.parseDouble(columns[col++].trim());
 			double y0 = Double.parseDouble(columns[col++].trim());
 			double c  = Double.parseDouble(columns[col++].trim());
