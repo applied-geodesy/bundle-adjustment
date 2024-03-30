@@ -67,11 +67,9 @@ public class BundleAdjustment {
 	
 	private class DispersionMatrixExportProperties {
 		private String exportPathAndFileName;
-		private boolean includeDatumConditions = Boolean.FALSE;
 		
-		DispersionMatrixExportProperties(String exportPathAndFileName, boolean includeDatumConditions) {
+		DispersionMatrixExportProperties(String exportPathAndFileName) {
 			this.exportPathAndFileName  = exportPathAndFileName;
-			this.includeDatumConditions = includeDatumConditions;
 		}
 	}
 	
@@ -1040,8 +1038,8 @@ public class BundleAdjustment {
 		return this.sigma2apriori;
 	}
 	
-	public void setCovarianceExportPathAndBaseName(String path, boolean exportDatumConditions) {
-		this.dispersionMatrixExportProperties = path == null ? null : new DispersionMatrixExportProperties(path, exportDatumConditions);
+	public void setCovarianceExportPathAndBaseName(String path) {
+		this.dispersionMatrixExportProperties = path == null ? null : new DispersionMatrixExportProperties(path);
 	}
 	
 	public void setEstimationType(EstimationType estimationType) throws UnsupportedOperationException {
@@ -1068,12 +1066,11 @@ public class BundleAdjustment {
 			return true;
 
 		String exportPathAndFileName   = this.dispersionMatrixExportProperties.exportPathAndFileName;
-		boolean includeDatumConditions = this.dispersionMatrixExportProperties.includeDatumConditions;
 
 		File coVarMatrixFile = new File(exportPathAndFileName + ".cxx");
 		File coVarInfoFile   = new File(exportPathAndFileName + ".info");
 
-		return this.exportCovarianceMatrixInfoToFile(coVarInfoFile, includeDatumConditions) && this.exportCovarianceMatrixToFile(coVarMatrixFile, includeDatumConditions);
+		return this.exportCovarianceMatrixInfoToFile(coVarInfoFile) && this.exportCovarianceMatrixToFile(coVarMatrixFile);
 	}
 	
 	public UpperSymmPackMatrix getCofactorMatrix() {
@@ -1085,7 +1082,7 @@ public class BundleAdjustment {
 	 * @param f
 	 * @return isWritten
 	 */
-	private boolean exportCovarianceMatrixInfoToFile(File f, boolean includeDatumConditions) {
+	private boolean exportCovarianceMatrixInfoToFile(File f) {
 		// noch keine Loesung vorhanden
 		if (f == null) //  || this.Qxx == null
 			return false;
@@ -1093,7 +1090,7 @@ public class BundleAdjustment {
 		this.currentEstimationStatus = EstimationStateType.EXPORT_COVARIANCE_INFORMATION;
 		this.change.firePropertyChange(this.currentEstimationStatus.name(), null, f.toString());
 
-		int indexDatum = includeDatumConditions ? 0 : this.rankDefect.getDefect();
+		int numberOfDatumConditions = this.rankDefect.getDefect();
 		boolean isComplete = false;
 		PrintWriter pw = null;
 		try {
@@ -1106,9 +1103,9 @@ public class BundleAdjustment {
 				UnknownParameter<ObjectCoordinate> Z = objectCoordinate.getZ();
 				String name = objectCoordinate.getName();
 				
-				pw.printf(Locale.ENGLISH, format, name, 'X', X.getValue(), X.getColumn() - indexDatum);
-				pw.printf(Locale.ENGLISH, format, name, 'Y', Y.getValue(), Y.getColumn() - indexDatum);
-				pw.printf(Locale.ENGLISH, format, name, 'Z', Z.getValue(), Z.getColumn() - indexDatum);
+				pw.printf(Locale.ENGLISH, format, name, 'X', X.getValue(), X.getColumn() - numberOfDatumConditions);
+				pw.printf(Locale.ENGLISH, format, name, 'Y', Y.getValue(), Y.getColumn() - numberOfDatumConditions);
+				pw.printf(Locale.ENGLISH, format, name, 'Z', Z.getValue(), Z.getColumn() - numberOfDatumConditions);
 
 			}
 			isComplete = true;
@@ -1129,7 +1126,7 @@ public class BundleAdjustment {
 	 * @param f
 	 * @return isWritten
 	 */
-	private boolean exportCovarianceMatrixToFile(File f, boolean includeDatumConditions) {
+	private boolean exportCovarianceMatrixToFile(File f) {
 		// noch keine Loesung vorhanden
 		if (f == null || this.Qxx == null || this.Qxx.numRows() < this.numberOfUnknownParameters)
 			return false;
@@ -1142,13 +1139,12 @@ public class BundleAdjustment {
 		double sigma2apost = this.getVarianceFactorAposteriori();
 
 		int numberOfDatumConditions = this.rankDefect.getDefect();
-		int size = this.invertNormalEquationMatrix == MatrixInversion.REDUCED ? this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 : this.Qxx.numRows() - numberOfDatumConditions;
-		size = includeDatumConditions ? size + numberOfDatumConditions : size;
+		int size = this.invertNormalEquationMatrix == MatrixInversion.REDUCED ? this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 + numberOfDatumConditions : this.Qxx.numRows();
 
 		try {
 			pw = new PrintWriter(new BufferedWriter(new FileWriter( f )));
-			for (int i = includeDatumConditions ? 0 : numberOfDatumConditions; i < size; i++) {
-				for (int j = includeDatumConditions ? 0 : numberOfDatumConditions; j < size; j++) {
+			for (int i = numberOfDatumConditions; i < size; i++) {
+				for (int j = numberOfDatumConditions; j < size; j++) {
 					pw.printf(Locale.ENGLISH, "%+35.15f  ", sigma2apost*this.Qxx.get(i, j));
 				}
 				pw.println();	
