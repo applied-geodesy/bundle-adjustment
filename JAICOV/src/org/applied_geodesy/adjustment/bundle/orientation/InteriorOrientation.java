@@ -32,7 +32,7 @@ import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
 public class InteriorOrientation implements Referenceable<Camera>, Iterable<UnknownParameter<InteriorOrientation>> {
 	private final Camera camera;
-	private Map<ParameterType, UnknownParameter<InteriorOrientation>> params = new LinkedHashMap<ParameterType, UnknownParameter<InteriorOrientation>>(10);
+	private Map<ParameterType, UnknownParameter<InteriorOrientation>> params = new LinkedHashMap<ParameterType, UnknownParameter<InteriorOrientation>>(13);
 	
 	public InteriorOrientation(Camera camera) {
 		this.camera = camera;
