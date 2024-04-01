@@ -25,7 +25,6 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Collection;
 import java.util.Locale;
-import java.util.Set;
 
 import org.applied_geodesy.adjustment.EstimationStateType;
 import org.applied_geodesy.adjustment.EstimationType;
@@ -37,7 +36,7 @@ import org.applied_geodesy.adjustment.bundle.Camera;
 import org.applied_geodesy.adjustment.bundle.Image;
 import org.applied_geodesy.adjustment.bundle.ImageCoordinate;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
-import org.applied_geodesy.util.io.AICONReportFileReader;
+import org.applied_geodesy.util.io.reader.AICONReportFileReader;
 
 import no.uib.cipr.matrix.Matrix;
 
@@ -55,7 +54,6 @@ public class JAiCov implements PropertyChangeListener {
 		System.setProperty("com.github.fommil.netlib.ARPACK", "com.github.fommil.netlib.F2jARPACK");
 
 		long t = System.currentTimeMillis();
-		MatrixInversion estimateDispersionMatrix = MatrixInversion.FULL;
 		
 		// Read adjustment report from Aicon Studio 3D
 		AICONReportFileReader reader = new AICONReportFileReader("example/example.htm");
@@ -81,13 +79,12 @@ public class JAiCov implements PropertyChangeListener {
 			}
 		}
 
-		// Add a listener to get notifications of the adjustment process
+		// Add a listener to get notifications of the adjustment process (not required)
 		adjustment.addPropertyChangeListener(new JAiCov());
 		// Select the estimation type, e.g., L2Norm or Simulation
 		adjustment.setEstimationType(EstimationType.L2NORM);
 		// Use NONE, if the dispersion matrix is not required
-		adjustment.setInvertNormalEquation(estimateDispersionMatrix);
-
+		adjustment.setInvertNormalEquation(MatrixInversion.REDUCED);
 		// Call estimate to start the bundle adjustment
 		EstimationStateType estimationStateType = adjustment.estimateModel();
 
@@ -99,11 +96,14 @@ public class JAiCov implements PropertyChangeListener {
 			System.out.println("Bundle adjustment finished successfully...");
 
 			// derive dispersion of parameters
-			Matrix D = adjustment.getCofactorMatrix().scale(adjustment.getVarianceFactorAposteriori());
+			Matrix D = adjustment.getCofactorMatrix();
+			if (D != null)
+				D.scale(adjustment.getVarianceFactorAposteriori());
+			
 			String template = "%10s\t%+16.5f\t%+16.5f\t%+16.5f\t%+8.5f\t%+8.5f\t%+8.5f\t%1s";
 
 			// print coordinates of object points and related uncertainties
-			Set<ObjectCoordinate> objectCoordinates = adjustment.getObjectCoordinates();
+			Collection<ObjectCoordinate> objectCoordinates = adjustment.getObjectCoordinates();
 			for (ObjectCoordinate objectCoordinate : objectCoordinates) {
 				UnknownParameter<ObjectCoordinate> X = objectCoordinate.getX();
 				UnknownParameter<ObjectCoordinate> Y = objectCoordinate.getY();
@@ -118,7 +118,7 @@ public class JAiCov implements PropertyChangeListener {
 
 				double ux = 0, uy = 0, uz = 0;
 
-				if (estimateDispersionMatrix != MatrixInversion.NONE && X.getColumn() >= 0 && Y.getColumn() >= 0 && Z.getColumn() >= 0 && X.getColumn() != Integer.MAX_VALUE && Y.getColumn() != Integer.MAX_VALUE && Z.getColumn() != Integer.MAX_VALUE) {
+				if (D != null && X.getColumn() >= 0 && Y.getColumn() >= 0 && Z.getColumn() >= 0 && X.getColumn() != Integer.MAX_VALUE && Y.getColumn() != Integer.MAX_VALUE && Z.getColumn() != Integer.MAX_VALUE) {
 					ux = Math.sqrt(Math.abs(D.get(X.getColumn(), X.getColumn())));
 					uy = Math.sqrt(Math.abs(D.get(Y.getColumn(), Y.getColumn())));
 					uz = Math.sqrt(Math.abs(D.get(Z.getColumn(), Z.getColumn())));

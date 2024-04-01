@@ -23,16 +23,12 @@ package org.applied_geodesy.adjustment.bundle;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -49,6 +45,7 @@ import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.adjustment.defect.DefectType;
 import org.applied_geodesy.adjustment.defect.RankDefect;
+import org.applied_geodesy.util.io.writer.AdjustmentResultWriteable;
 
 import no.uib.cipr.matrix.DenseVector;
 import no.uib.cipr.matrix.Matrix;
@@ -65,18 +62,10 @@ public class BundleAdjustment {
 		REDUCED
 	};
 	
-	private class DispersionMatrixExportProperties {
-		private String exportPathAndFileName;
-		
-		DispersionMatrixExportProperties(String exportPathAndFileName) {
-			this.exportPathAndFileName  = exportPathAndFileName;
-		}
-	}
-	
 	private final PropertyChangeSupport change = new PropertyChangeSupport(this);
 	private EstimationStateType currentEstimationStatus = EstimationStateType.BUSY;
 	private EstimationType estimationType = EstimationType.L2NORM;
-	private DispersionMatrixExportProperties dispersionMatrixExportProperties = null;
+	private AdjustmentResultWriteable adjustmentResultWriter = null;
 	
 	private static double SQRT_EPS = Math.sqrt(Constant.EPS);
 	private int maximalNumberOfIterations = DefaultValue.getMaximalNumberOfIterations(),
@@ -324,9 +313,9 @@ public class BundleAdjustment {
 			if (this.useCentroidedCoordinates)
 				this.centroidCoordinates(true);
 			
-			// export dispersion matrix to file
-			if (!this.exportCovarianceMatrix()) 
-				System.err.println("Fehler, Varianz-Kovarianz-Matrix konnte nicht exportiert werden.");
+			// export adjustment results to file
+			if (!this.exportAdjustmentResults()) 
+				System.err.println("Error, adjustment result could not be exported.");
 
 		}
 		catch (OutOfMemoryError e) {
@@ -1013,35 +1002,94 @@ public class BundleAdjustment {
 		}
 	}
 	
-	public Set<ObjectCoordinate> getObjectCoordinates() {
+	/**
+	 * Returns a collection containing the adjusted object coordinates
+	 * @return coordinates
+	 */
+	public Collection<ObjectCoordinate> getObjectCoordinates() {
 		return this.objectCoordinates;
 	}
 	
+	/**
+	 * Returns the number of observations
+	 * @return number of observations
+	 */
 	public int getNumberOfObservations() {
 		return this.numberOfObservations;
 	}
 	
+	/**
+	 * Returns the number of adjusted parameters 
+	 * @return number of parameters  
+	 */
 	public int getNumberOfUnknownParameters() {
 		return this.numberOfUnknownParameters;
 	}
 	
+	/**
+	 * Returns the defect of the normal equation system, i.e. nullity(N)
+	 * @return defect of normal equations
+	 */
+	public int getNumberOfDatumConditions() {
+		return this.rankDefect.getDefect();
+	}
+	
+	/**
+	 * Returns the overall degree of freedom of the adjustment, i.e., dof = n - u + d
+	 * @return degree of freedom
+	 */
 	public int getDegreeOfFreedom() {
 		return this.numberOfObservations - this.numberOfUnknownParameters + this.rankDefect.getDefect();
 	}
 	
+	/**
+	 * Returns the a-posteriori variance of the unit weight, if the option applyAposterioriVarianceOfUnitWeight 
+	 * is set to true and the estimation type is set to L2NORM, in any other case, the a-priori variance of the 
+	 * unit weight is returned 
+	 * @return variance of unit weight
+	 */
 	public double getVarianceFactorAposteriori() {
 		int degreeOfFreedom = this.getDegreeOfFreedom();
 		return degreeOfFreedom > 0 && this.omega > 0 && this.estimationType != EstimationType.SIMULATION && this.applyAposterioriVarianceOfUnitWeight ? Math.abs(this.omega/(double)degreeOfFreedom) : this.sigma2apriori;
 	}
 	
+	/**
+	 * Returns the a-priori variance of the unit weight
+	 * @return variance of unit weight
+	 */
 	public double getVarianceFactorApriori() {
 		return this.sigma2apriori;
 	}
 	
-	public void setCovarianceExportPathAndBaseName(String path) {
-		this.dispersionMatrixExportProperties = path == null ? null : new DispersionMatrixExportProperties(path);
+	/**
+	 * Returns a collection of the cameras used within the adjustment
+	 * @return cameras
+	 */
+	public Collection<Camera> getCameras() {
+		return this.cameras;
 	}
 	
+	/**
+	 * Returns a collection of the scale bars
+	 * @return scale bars
+	 */
+	public Collection<ScaleBar> getScaleBars() {
+		return this.scaleBars;
+	}
+	
+	/**
+	 * Defines the result writer to export specific adjustment results
+	 * @param adjustmentResultWriter
+	 */
+	public void setAdjustmentResultWriter(AdjustmentResultWriteable adjustmentResultWriter) {
+		this.adjustmentResultWriter = adjustmentResultWriter;
+	}
+	
+	/**
+	 * Defines the estimation type, i.e. L2NORM or SIMULATION
+	 * @param estimationType
+	 * @throws UnsupportedOperationException
+	 */
 	public void setEstimationType(EstimationType estimationType) throws UnsupportedOperationException {
 		if (estimationType == EstimationType.L2NORM || estimationType == EstimationType.SIMULATION)
 			this.estimationType = estimationType;
@@ -1050,10 +1098,9 @@ public class BundleAdjustment {
 	}
 	
 	/**
-	 * Legt fest, ob die Normalgleichung invertiert werden soll
-	 * um die Kofaktormatrix zu bestimmen. Sind nur die Parameter
-	 * von Interesse, dann kann hierdurch z.T. erhebliche Rechenzeit 
-	 * gesparrt werden.
+	 * Defines whether the normal equation should be inverted to determine the co-factor matrix. 
+	 * If only the adjusted parameters are of interest, this option can save considerable 
+	 * computing time. 
 	 * 
 	 * @param invert
 	 */
@@ -1061,107 +1108,41 @@ public class BundleAdjustment {
 		this.invertNormalEquationMatrix = invert;
 	}
 	
-	private boolean exportCovarianceMatrix() {
-		if (this.dispersionMatrixExportProperties == null)
+	/**
+	 * Returns whether the normal equation should be inverted or even not
+	 * @return invert
+	 */
+	public MatrixInversion getInvertNormalEquation() {
+		return this.invertNormalEquationMatrix;
+	}
+	
+	private boolean exportAdjustmentResults() {
+		if (this.adjustmentResultWriter == null)
 			return true;
 
-		String exportPathAndFileName   = this.dispersionMatrixExportProperties.exportPathAndFileName;
+		boolean writen = false;
+		try {
+			this.currentEstimationStatus = EstimationStateType.EXPORT_ADJUSTMENT_RESULTS;
+			this.change.firePropertyChange(this.currentEstimationStatus.name(), null, this.adjustmentResultWriter.toString());
+			this.adjustmentResultWriter.export(this);
+			writen = true;
+		} catch (NullPointerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
-		File coVarMatrixFile = new File(exportPathAndFileName + ".cxx");
-		File coVarInfoFile   = new File(exportPathAndFileName + ".info");
-
-		return this.exportCovarianceMatrixInfoToFile(coVarInfoFile) && this.exportCovarianceMatrixToFile(coVarMatrixFile);
+		return writen;
 	}
-	
+
+	/**
+	 * Returns the co-factor matrix, if inversion mode is not set to NONE
+	 * @return co-factor
+	 */
 	public UpperSymmPackMatrix getCofactorMatrix() {
-		return this.Qxx;
+		return (this.invertNormalEquationMatrix == MatrixInversion.NONE) ? null : this.Qxx;
 	}
 
-	/**
-	 * Schreibt punktbezogene Informationen zur CoVar raus
-	 * @param f
-	 * @return isWritten
-	 */
-	private boolean exportCovarianceMatrixInfoToFile(File f) {
-		// noch keine Loesung vorhanden
-		if (f == null) //  || this.Qxx == null
-			return false;
-
-		this.currentEstimationStatus = EstimationStateType.EXPORT_COVARIANCE_INFORMATION;
-		this.change.firePropertyChange(this.currentEstimationStatus.name(), null, f.toString());
-
-		int numberOfDatumConditions = this.rankDefect.getDefect();
-		boolean isComplete = false;
-		PrintWriter pw = null;
-		try {
-			pw = new PrintWriter(new BufferedWriter(new FileWriter( f )));
-			//Pkt,Type(XYZ),Coord,Row in NGL
-			String format = "%25s\t%5s\t%35.15f\t%10d%n";
-			for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
-				UnknownParameter<ObjectCoordinate> X = objectCoordinate.getX();
-				UnknownParameter<ObjectCoordinate> Y = objectCoordinate.getY();
-				UnknownParameter<ObjectCoordinate> Z = objectCoordinate.getZ();
-				String name = objectCoordinate.getName();
-				
-				pw.printf(Locale.ENGLISH, format, name, 'X', X.getValue(), X.getColumn() - numberOfDatumConditions);
-				pw.printf(Locale.ENGLISH, format, name, 'Y', Y.getValue(), Y.getColumn() - numberOfDatumConditions);
-				pw.printf(Locale.ENGLISH, format, name, 'Z', Z.getValue(), Z.getColumn() - numberOfDatumConditions);
-
-			}
-			isComplete = true;
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		finally {
-			if (pw != null) {
-				pw.close();
-			}
-		}
-
-		return isComplete;
-	}
-
-	/**
-	 * Schreibt die CoVar raus
-	 * @param f
-	 * @return isWritten
-	 */
-	private boolean exportCovarianceMatrixToFile(File f) {
-		// noch keine Loesung vorhanden
-		if (f == null || this.Qxx == null || this.Qxx.numRows() < this.numberOfUnknownParameters)
-			return false;
-
-		this.currentEstimationStatus = EstimationStateType.EXPORT_COVARIANCE_MATRIX;
-		this.change.firePropertyChange(this.currentEstimationStatus.name(), null, f.toString());
-
-		boolean isComplete = false;
-		PrintWriter pw = null;
-		double sigma2apost = this.getVarianceFactorAposteriori();
-
-		int numberOfDatumConditions = this.rankDefect.getDefect();
-		int size = this.invertNormalEquationMatrix == MatrixInversion.REDUCED ? this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 + numberOfDatumConditions : this.Qxx.numRows();
-
-		try {
-			pw = new PrintWriter(new BufferedWriter(new FileWriter( f )));
-			for (int i = numberOfDatumConditions; i < size; i++) {
-				for (int j = numberOfDatumConditions; j < size; j++) {
-					pw.printf(Locale.ENGLISH, "%+35.15f  ", sigma2apost*this.Qxx.get(i, j));
-				}
-				pw.println();	
-			}
-
-			isComplete = true;
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		finally {
-			if (pw != null) {
-				pw.close();
-			}
-		}
-		return isComplete;
-	}
-	
 	public void useCentroidedCoordinates(boolean useCentroidedCoordinates) {
 		this.useCentroidedCoordinates = useCentroidedCoordinates;
 	}
