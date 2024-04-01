@@ -1,4 +1,4 @@
-# Bundle-Adjustment
+# Bundle Adjustment for Close-Range Photogrammetry
 
 ## Photogrammetry
 
@@ -19,7 +19,7 @@ that do not need such statistical parameters. However, a small number of applica
 and the fully populated dispersion matrix - especially, if the results of the bundle adjustment are treated as incoming data in 
 further analysis steps. For instance, in the framework of deformation analysis, the dispersion of the parameters is required to 
 obtain reliable and almost unbiased test statistics. The following figure depicts a comparison of the resulting uncertainties of the coordinate components 
-X, Y, Z derived from four different stochastic models, i.e. identity matrix, diagonal matrix, block-diagonal matrix, fully populated matrix.
+`X`, `Y`, `Z` derived from four different stochastic models, i.e. identity matrix, diagonal matrix, block-diagonal matrix, fully populated matrix.
 The study shows that the uncertainties become too optimistic, if stochastic dependencies are neglected. 
 
 ![Comparison of resulting uncertainties of coordinate components X, Y, Z derived from four different stochastic models, i.e. identity matrix, diagonal matrix, block-diagonal matrix, fully populated matrix](/.images/bundle_adjustment_impact_of_dispersion_matrix.png?raw=true "Impact of dispersion matrix on derived quantities")
@@ -29,6 +29,18 @@ In the field of metrology and close-range photogrammetry, usually marked points 
 Moreover, the number of points to be estimated is discrete, and so is the dimension of the dispersion matrix. The computational 
 effort is justifiable, and the benefit of a small but high accurate set of points preponderate against a dense but less precise 
 point cloud. For such specific applications, this tiny bundle adjustment library is developed.
+
+**Some features**
+- Platform independent
+- In-situ camera calibration, i.e,
+  + Principle point `x0`, `y0`
+  + Principle distance `c`
+  + Radial-symmetric distortion `A1`, `A2`, `A3`
+  + Tangential distortion `B1`, `B2`
+  + Affinity and shear `C1`, `C2`
+  + Distance-dependent distortion `D1`, `D2`, `D3`
+- Fully populated dispersion matrix of parameters to be estimated
+- Direct export of adjustment results to scientific software package [Matlab](https://mathworks.com/products/matlab.html)
 
 ## Field of application
 The library was developed within the international project [GeoMetre](https://www.ptb.de/empir2018/geometre/home/), a joint research project within the European Metrology Research Programme EMPIR (Grant Number: 18SIB01, Funding: [10.13039/100014132](https://doi.org/10.13039/100014132)). The bundle adjustment was applied in the framework of reference point determination of laser telescopes used for satellite laser ranging (SLR). In order to detect smallest deformations of the main reflector as well as the subreflector of radio telescopes used for very long baseline interferometry (VLBI), this library was used for the rigorous adjustment of photogrammetric measurements.
@@ -60,7 +72,10 @@ else {
 	System.out.println("Bundle adjustment finished successfully...");
 			
 	// derive dispersion of parameters
-	Matrix D = adjustment.getCofactorMatrix().scale(adjustment.getVarianceFactorAposteriori());
+	Matrix D = adjustment.getCofactorMatrix();
+	if (D != null)
+		D.scale(adjustment.getVarianceFactorAposteriori());
+
 	String template = "%10s\t%+16.5f\t%+16.5f\t%+16.5f\t%+8.5f\t%+8.5f\t%+8.5f";
 
 	// print coordinates of object points and related uncertainties
@@ -74,7 +89,7 @@ else {
 		double z = Z.getValue();
 		double ux = 0, uy = 0, uz = 0;
 
-		if (X.getColumn() >= 0 && Y.getColumn() >= 0 && Z.getColumn() >= 0) {
+		if (D != null && X.getColumn() >= 0 && Y.getColumn() >= 0 && Z.getColumn() >= 0 && X.getColumn() != Integer.MAX_VALUE && Y.getColumn() != Integer.MAX_VALUE && Z.getColumn() != Integer.MAX_VALUE) {
 			ux = Math.sqrt(Math.abs(D.get(X.getColumn(), X.getColumn())));
 			uy = Math.sqrt(Math.abs(D.get(Y.getColumn(), Y.getColumn())));
 			uz = Math.sqrt(Math.abs(D.get(Z.getColumn(), Z.getColumn())));
@@ -84,7 +99,10 @@ else {
 	}
 
 	// print some statistical parameters
-	System.out.println("Degree of freedom:          " + adjustment.getDegreeOfFreedom());
-	System.out.println("Variance of unit weight:    " + adjustment.getVarianceFactorApriori() + " : " + adjustment.getVarianceFactorAposteriori());
+	System.out.println("Number of observations:           " + adjustment.getNumberOfObservations());
+	System.out.println("Number of unknown parameters:     " + adjustment.getNumberOfUnknownParameters());
+	System.out.println("Degree of freedom:                " + adjustment.getDegreeOfFreedom());
+	System.out.println("Variances of unit weight:         1.0 : " + adjustment.getVarianceFactorAposteriori() / adjustment.getVarianceFactorApriori());
+	System.out.println("Variances of unit weight (ratio): " + adjustment.getVarianceFactorApriori() + " : " + adjustment.getVarianceFactorAposteriori());		
 }
 ```
