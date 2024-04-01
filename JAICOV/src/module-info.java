@@ -20,16 +20,20 @@
 ***********************************************************************/
 
 module org.applied_geodesy.jaicov {
-	exports org.applied_geodesy.util.io;
+	exports org.applied_geodesy.util.io.reader;
 	exports org.applied_geodesy.adjustment;
 	exports org.applied_geodesy.adjustment.bundle;
 	exports org.applied_geodesy.adjustment.bundle.dlt;
 	exports org.applied_geodesy.adjustment.bundle.parameter;
 	exports org.applied_geodesy.adjustment.bundle.orientation;
+	exports org.applied_geodesy.util.io.writer;
 
 	requires arpack.combined.all;
 	requires core;
 	requires transitive mtj;
+	
+	requires us.hebi.matlab.mat.mfl.core;
+	requires jdk.unsupported;
 
 	requires transitive java.desktop;
 	requires transitive java.sql;

@@ -19,7 +19,7 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.util.io;
+package org.applied_geodesy.util.io.reader;
 
 import java.io.File;
 import java.io.IOException;

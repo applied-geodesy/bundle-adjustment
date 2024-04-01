@@ -19,44 +19,51 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.util.io;
+package org.applied_geodesy.util.io.reader;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Locale;
+import java.nio.file.Path;
+import java.sql.SQLException;
 
-import no.uib.cipr.matrix.Matrix;
+public abstract class SourceFileReader<T> extends LockFileReader {
 
-public class MatrixWriter {
-	
-	private MatrixWriter() {}
-
-	public static void write(File f, Matrix M) throws IOException {
-		write(f, 1.0, M);
+	protected SourceFileReader() {
+		super();
 	}
 	
-	public static void write(File f, double scale, Matrix M) throws IOException {
-		int columns = M.numColumns();
-		int rows = M.numRows();
-		
-		PrintWriter pw = null;
-		try {
-			pw = new PrintWriter(new BufferedWriter(new FileWriter( f )));
+	protected SourceFileReader(String fileName) {
+		this(new File(fileName).toPath());
+	}
 
-			for (int i=0; i<rows; i++) {
-				for (int j=0; j<columns; j++) {
-					pw.printf(Locale.ENGLISH, "%+35.15f  ", scale * M.get(i,j));
-				}
-				pw.println();	
-			}
-		} 
-		finally {
-			if (pw != null) {
-				pw.close();
-			}
+	protected SourceFileReader(File sf) {
+		this(sf.toPath());
+	}
+	
+	protected SourceFileReader(Path path) {
+		super(path);
+		this.setPath(path);
+	}
+	
+	@Override
+	public void setPath(Path path) {
+		this.reset();
+		super.setPath(path);
+	}
+	
+	public abstract T readAndImport() throws IOException, SQLException;
+
+	public abstract void reset();
+
+	public String createItemName(String prefix, String suffix) {
+		prefix = prefix == null ? "" : prefix;
+		suffix = suffix == null ? "" : suffix;
+		String fileName = this.getPath().getFileName().toString();
+		if (!fileName.trim().isEmpty()) {
+			if (fileName.indexOf('.') > 0)
+				fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+			return prefix + fileName + suffix;
 		}
+		return null;
 	}
 }
