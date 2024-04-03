@@ -40,7 +40,7 @@ point cloud. For such specific applications, this tiny bundle adjustment library
   + Affinity and shear `C1`, `C2`
   + Distance-dependent distortion `D1`, `D2`, `D3`
 - Fully populated dispersion matrix of parameters to be estimated
-- Direct export of adjustment results to scientific software package [Matlab](https://mathworks.com/products/matlab.html)
+- Direct export of adjustment results to scientific software package [Matlab](https://matlab.mathworks.com)
 
 ## Field of application
 The library was developed within the international project [GeoMetre](https://www.ptb.de/empir2018/geometre/home/), a joint research project within the European Metrology Research Programme EMPIR (Grant Number: 18SIB01, Funding: [10.13039/100014132](https://doi.org/10.13039/100014132)). The bundle adjustment was applied in the framework of reference point determination of laser telescopes used for satellite laser ranging (SLR). In order to detect smallest deformations of the main reflector as well as the subreflector of radio telescopes used for very long baseline interferometry (VLBI), this library was used for the rigorous adjustment of photogrammetric measurements.
