@@ -45,7 +45,7 @@ import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.adjustment.defect.DefectType;
 import org.applied_geodesy.adjustment.defect.RankDefect;
-import org.applied_geodesy.util.io.writer.AdjustmentResultWriteable;
+import org.applied_geodesy.util.io.writer.AdjustmentResultWritable ;
 
 import no.uib.cipr.matrix.DenseVector;
 import no.uib.cipr.matrix.Matrix;
@@ -65,7 +65,7 @@ public class BundleAdjustment {
 	private final PropertyChangeSupport change = new PropertyChangeSupport(this);
 	private EstimationStateType currentEstimationStatus = EstimationStateType.BUSY;
 	private EstimationType estimationType = EstimationType.L2NORM;
-	private AdjustmentResultWriteable adjustmentResultWriter = null;
+	private AdjustmentResultWritable  adjustmentResultWriter = null;
 	
 	private static double SQRT_EPS = Math.sqrt(Constant.EPS);
 	private int maximalNumberOfIterations = DefaultValue.getMaximalNumberOfIterations(),
@@ -1081,7 +1081,7 @@ public class BundleAdjustment {
 	 * Defines the result writer to export specific adjustment results
 	 * @param adjustmentResultWriter
 	 */
-	public void setAdjustmentResultWriter(AdjustmentResultWriteable adjustmentResultWriter) {
+	public void setAdjustmentResultWriter(AdjustmentResultWritable adjustmentResultWriter) {
 		this.adjustmentResultWriter = adjustmentResultWriter;
 	}
 	

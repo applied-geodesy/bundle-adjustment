@@ -21,7 +21,7 @@
 
 package org.applied_geodesy.util.io.writer;
 
-public abstract class BundleAdjustmentResultWriter implements AdjustmentResultWriteable {
+public abstract class BundleAdjustmentResultWriter implements AdjustmentResultWritable  {
 	private String exportPathAndFileBaseName = null;
 	
 	public BundleAdjustmentResultWriter(String exportPathAndFileBaseName) {
