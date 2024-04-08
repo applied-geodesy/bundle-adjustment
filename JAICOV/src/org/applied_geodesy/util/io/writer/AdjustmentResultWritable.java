@@ -25,7 +25,7 @@ import java.io.IOException;
 
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
 
-public interface AdjustmentResultWriteable {
+public interface AdjustmentResultWritable  {
 
 	/**
 	 * Exports specific results of the bundle adjustment
