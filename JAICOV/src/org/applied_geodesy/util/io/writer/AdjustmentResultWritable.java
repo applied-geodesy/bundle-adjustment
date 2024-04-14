@@ -33,5 +33,5 @@ public interface AdjustmentResultWritable  {
 	 * @throws NullPointerException
 	 * @throws IOException
 	 */
-	public void export(BundleAdjustment bundleAdjustment) throws NullPointerException, IOException;
+	public void export(BundleAdjustment bundleAdjustment) throws NullPointerException, IllegalArgumentException, IOException;
 }
