@@ -47,7 +47,7 @@ public class MatlabResultWriter extends BundleAdjustmentResultWriter {
 	}
 
 	@Override
-	public void export(BundleAdjustment bundleAdjustment) throws NullPointerException, IOException {
+	public void export(BundleAdjustment bundleAdjustment) throws NullPointerException, IllegalArgumentException, IOException {
 		if (bundleAdjustment == null)
 			throw new NullPointerException("Error, bundle adjustment object cannot be null!");
 		

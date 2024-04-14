@@ -314,9 +314,14 @@ public class BundleAdjustment {
 				this.centroidCoordinates(true);
 			
 			// export adjustment results to file
-			if (!this.exportAdjustmentResults()) 
-				System.err.println("Error, adjustment result could not be exported.");
-
+			try {
+				this.exportAdjustmentResults();
+			} catch (NullPointerException | IllegalArgumentException | IOException e) {
+				e.printStackTrace();
+				this.currentEstimationStatus = EstimationStateType.EXPORT_ADJUSTMENT_RESULTS_FAILED;
+				this.change.firePropertyChange(this.currentEstimationStatus.name(), false, true);
+				return this.currentEstimationStatus;
+			} 
 		}
 		catch (OutOfMemoryError e) {
 			e.printStackTrace();
@@ -1116,23 +1121,19 @@ public class BundleAdjustment {
 		return this.invertNormalEquationMatrix;
 	}
 	
-	private boolean exportAdjustmentResults() {
+	/**
+	 * Writes adjustment results
+	 * @throws IOException 
+	 * @throws IllegalArgumentException 
+	 * @throws NullPointerException 
+	 */
+	private void exportAdjustmentResults() throws NullPointerException, IllegalArgumentException, IOException {
 		if (this.adjustmentResultWriter == null)
-			return true;
+			return;
 
-		boolean writen = false;
-		try {
-			this.currentEstimationStatus = EstimationStateType.EXPORT_ADJUSTMENT_RESULTS;
-			this.change.firePropertyChange(this.currentEstimationStatus.name(), null, this.adjustmentResultWriter.toString());
-			this.adjustmentResultWriter.export(this);
-			writen = true;
-		} catch (NullPointerException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		return writen;
+		this.currentEstimationStatus = EstimationStateType.EXPORT_ADJUSTMENT_RESULTS;
+		this.change.firePropertyChange(this.currentEstimationStatus.name(), null, this.adjustmentResultWriter.toString());
+		this.adjustmentResultWriter.export(this);
 	}
 
 	/**
