@@ -21,10 +21,13 @@
 
 package org.applied_geodesy.adjustment.bundle;
 
+import java.util.Iterator;
+
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
+import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 
-public class ScaleBar {
+public class ScaleBar implements ObservationParameterGroup<ScaleBar> {
 	private final ObjectCoordinate objectCoordinateA, objectCoordinateB;
 	private ObservationParameter<ScaleBar> length = new ObservationParameter<ScaleBar>(ParameterType.SCALE_BAR_LENGTH, this);
 	
@@ -45,5 +48,36 @@ public class ScaleBar {
 	
 	public ObjectCoordinate getObjectCoordinateB() {
 		return this.objectCoordinateB;
+	}
+	
+	@Override
+	public String toString() {
+		return "ScaleBar [from=" + this.objectCoordinateA.getName() + ", to=" + this.objectCoordinateB.getName() + ", length=" + this.length.getValue() + "]";
+	}
+
+	@Override
+	public Iterator<ObservationParameter<ScaleBar>> iterator() {
+		return new Iterator<ObservationParameter<ScaleBar>>() {
+			private boolean first = true;
+			@Override
+			public boolean hasNext() {
+				return this.first;
+			}
+
+			@Override
+			public ObservationParameter<ScaleBar> next() {
+				if (!this.first)
+					return null;
+				
+				this.first = false;
+				
+				return length;
+			}
+		};
+	}
+
+	@Override
+	public final int getNumberOfParameters() {
+		return 1;
 	}
 }
