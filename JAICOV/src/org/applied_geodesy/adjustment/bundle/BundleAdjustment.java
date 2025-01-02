@@ -26,7 +26,6 @@ import java.beans.PropertyChangeSupport;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +40,7 @@ import org.applied_geodesy.adjustment.NormalEquationSystem;
 import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
+import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.adjustment.defect.DefectType;
@@ -96,9 +96,8 @@ public class BundleAdjustment {
 	private RankDefect rankDefect = new RankDefect();
 
 	private List<Camera> cameras = new ArrayList<Camera>();
-	private Set<ObservationParameter<?>> observations = new LinkedHashSet<ObservationParameter<?>>();
+	private Set<ObservationParameterGroup<?>> observationGroups = new LinkedHashSet<ObservationParameterGroup<?>>();
 	private Set<UnknownParameter<?>> unknownParameters = new LinkedHashSet<UnknownParameter<?>>();
-	private Map<UnknownParameter<?>, LinkedHashSet<ObservationParameter<?>>> observationsOfUnknownParameters = new LinkedHashMap<UnknownParameter<?>, LinkedHashSet<ObservationParameter<?>>>();
 	private Set<ObjectCoordinate> objectCoordinates = new LinkedHashSet<ObjectCoordinate>();
 	private Set<ScaleBar> scaleBars = new LinkedHashSet<ScaleBar>();
 
@@ -387,9 +386,16 @@ public class BundleAdjustment {
 		
 		if (updateCompleteModel) {
 			this.omega = 0.0;
-			for (ObservationParameter<?> observation : this.observations) {
-				double v = this.estimationType == EstimationType.SIMULATION ? 0.0 :  PartialDerivativeFactory.getMisclosure(observation);
-				this.omega += v * v * this.sigma2apriori / observation.getVariance();
+			for (ObservationParameterGroup<?> observations : this.observationGroups) {
+				Map<ParameterType, Double> residuals = PartialDerivativeFactory.getMisclosures(observations);
+				for (ObservationParameter<?> observation : observations) {
+					double residuum = 0;
+					ParameterType parameterType = observation.getParameterType();
+					if (this.estimationType != EstimationType.SIMULATION && residuals.containsKey(parameterType)) {
+						residuum = residuals.get(parameterType);
+						this.omega += residuum * residuum * this.sigma2apriori / observation.getVariance();
+					}
+				}
 			}
 		}
 	}
@@ -425,8 +431,8 @@ public class BundleAdjustment {
 	private double getOmega(Vector dx) {
 		double omega = 0.0;
 		
-		for (ObservationParameter<?> observation : this.observations) {
-			GaussMarkovEquations APw = PartialDerivativeFactory.getPartialDerivative(this.sigma2apriori, null, new DenseVector(dx.size()), observation);
+		for (ObservationParameterGroup<?> observations : this.observationGroups) {
+			GaussMarkovEquations APw = PartialDerivativeFactory.getPartialDerivative(this.sigma2apriori, null, new DenseVector(dx.size()), observations);
 			if (APw == null)
 				continue;
 			
@@ -442,144 +448,7 @@ public class BundleAdjustment {
 		}
 		return omega;
 	}
-
-//	private void addDatumConditionColumns(UpperSymmPackMatrix N) {
-//		// center of mass
-//		double x0 = 0, y0 = 0, z0 = 0;
-//		int count = 0;
-//		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
-//			if (objectCoordinate.isDatum()) {
-//				x0 += objectCoordinate.getX().getValue();
-//				y0 += objectCoordinate.getY().getValue();
-//				z0 += objectCoordinate.getZ().getValue();
-//				count++;
-//			}
-//		}
-//
-//		if (count < 3)
-//			throw new IllegalArgumentException(this.getClass() + " Error, not enought object points to realise the frame datum!");
-//
-//		x0 = x0 / (double)count;
-//		y0 = y0 / (double)count;
-//		z0 = z0 / (double)count;
-//
-//		int defectSize = this.rankDefect.getDefect();
-//		int row = N.numRows() - defectSize;
-//
-//		// Position in condition matrix
-//		int defectRow = 0;
-//		int tx   = this.rankDefect.estimateTranslationX() ? defectRow++ : -1;
-//		int ty   = this.rankDefect.estimateTranslationY() ? defectRow++ : -1;
-//		int tz   = this.rankDefect.estimateTranslationZ() ? defectRow++ : -1;
-//		int rx   = this.rankDefect.estimateRotationX()    ? defectRow++ : -1;
-//		int ry   = this.rankDefect.estimateRotationY()    ? defectRow++ : -1;
-//		int rz   = this.rankDefect.estimateRotationZ()    ? defectRow++ : -1;
-//		int mxyz = this.rankDefect.estimateScale()        ? defectRow++ : -1;
-//
-//		// Sum of squared row
-//		double normColumn[] = new double[defectSize];
-//
-//		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
-//			if (!objectCoordinate.isDatum())
-//				continue;
-//
-//			int columnX = objectCoordinate.getX().getColumn();
-//			int columnY = objectCoordinate.getY().getColumn();
-//			int columnZ = objectCoordinate.getZ().getColumn();
-//
-//			double x = objectCoordinate.getX().getValue() - x0;
-//			double y = objectCoordinate.getY().getValue() - y0;
-//			double z = objectCoordinate.getZ().getValue() - z0;
-//
-//			if (tx >= 0) {
-//				N.set(columnX, row + tx, 1.0);
-//
-//				normColumn[tx] += 1.0; 
-//			}
-//
-//			if (ty >= 0) {
-//				N.set(columnY, row + ty, 1.0);
-//
-//				normColumn[ty] += 1.0; 
-//			}
-//
-//			if (tz >= 0) {
-//				N.set(columnZ, row + tz, 1.0);
-//
-//				normColumn[tz] += 1.0; 
-//			}
-//
-//			if (rx >= 0) {
-//				N.set(columnY, row + rx,  z );
-//				N.set(columnZ, row + rx, -y );
-//
-//				normColumn[rx] += z*z + y*y;
-//			}
-//
-//			if (ry >= 0) {
-//				N.set(columnX, row + ry, -z );
-//				N.set(columnZ, row + ry,  x );
-//
-//				normColumn[ry] += z*z + x*x;
-//			}
-//
-//			if (rz >= 0) {
-//				N.set(columnX, row + rz,  y );
-//				N.set(columnY, row + rz, -x );	
-//
-//				normColumn[rz] += x*x + y*y;
-//			}
-//
-//			if (mxyz >= 0) {
-//				N.set(columnX, row+mxyz, x );
-//				N.set(columnY, row+mxyz, y );
-//				N.set(columnZ, row+mxyz, z );
-//
-//				normColumn[mxyz] += x*x + y*y + z*z;
-//			}
-//		}
-//
-//		// Normieren der Spalten
-//		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
-//			if (!objectCoordinate.isDatum())
-//				continue;
-//
-//			int columnX = objectCoordinate.getX().getColumn();
-//			int columnY = objectCoordinate.getY().getColumn();
-//			int columnZ = objectCoordinate.getZ().getColumn();
-//
-//			if (tx >= 0)
-//				N.set(columnX, row + tx, N.get(columnX, row + tx) / Math.sqrt(normColumn[tx]));
-//
-//			if (ty >= 0)
-//				N.set(columnY, row + ty, N.get(columnY, row + ty) / Math.sqrt(normColumn[ty]));
-//
-//			if (tz >= 0)
-//				N.set(columnZ, row + tz, N.get(columnZ, row + tz) / Math.sqrt(normColumn[tz]));
-//
-//			if (rx >= 0) {
-//				N.set(columnY, row + rx, N.get(columnY, row + rx) / Math.sqrt(normColumn[rx]) );
-//				N.set(columnZ, row + rx, N.get(columnZ, row + rx) / Math.sqrt(normColumn[rx]) );
-//			}
-//
-//			if (ry >= 0) {
-//				N.set(columnX, row + ry, N.get(columnX, row + ry) / Math.sqrt(normColumn[ry]) );
-//				N.set(columnZ, row + ry, N.get(columnZ, row + ry) / Math.sqrt(normColumn[ry]) );
-//			}
-//
-//			if (rz >= 0) {
-//				N.set(columnX, row + rz, N.get(columnX, row + rz) / Math.sqrt(normColumn[rz]) );
-//				N.set(columnY, row + rz, N.get(columnY, row + rz) / Math.sqrt(normColumn[rz]) );	
-//			}
-//
-//			if (mxyz >= 0) {
-//				N.set(columnX, row + mxyz, N.get(columnX, row + mxyz) / Math.sqrt(normColumn[mxyz]) );
-//				N.set(columnY, row + mxyz, N.get(columnY, row + mxyz) / Math.sqrt(normColumn[mxyz]) );
-//				N.set(columnZ, row + mxyz, N.get(columnZ, row + mxyz) / Math.sqrt(normColumn[mxyz]) );
-//			}
-//		}
-//	}
-
+	
 	private void addDatumConditionRows(UpperSymmPackMatrix N) {
 		// center of mass
 		double x0 = 0, y0 = 0, z0 = 0;
@@ -682,7 +551,7 @@ public class BundleAdjustment {
 			}
 		}
 
-		// Normieren der Spalten
+		// Normalize the columns
 		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
 			int columnX = objectCoordinate.getX().getColumn();
 			int columnY = objectCoordinate.getY().getColumn();
@@ -722,15 +591,12 @@ public class BundleAdjustment {
 			}
 		}
 	}
-
-	private void addObservation(UnknownParameter<?> unknownParameter, ObservationParameter<?> observation) {
-		if (!this.observationsOfUnknownParameters.containsKey(unknownParameter))
-			this.observationsOfUnknownParameters.put(unknownParameter, new LinkedHashSet<ObservationParameter<?>>());
-		this.observationsOfUnknownParameters.get(unknownParameter).add(observation);
-
-		if (!this.observations.contains(observation)) {
-			this.observations.add(observation);
-			this.sigma2apriori = Math.min(this.sigma2apriori, observation.getVariance());
+	
+	private void addObservationGroup(ObservationParameterGroup<?> observations) {
+		if (!this.observationGroups.contains(observations)) {
+			this.observationGroups.add(observations);
+			for (ObservationParameter<?> observation : observations)
+				this.sigma2apriori = Math.min(this.sigma2apriori, observation.getVariance());
 		}
 	}
 
@@ -738,18 +604,6 @@ public class BundleAdjustment {
 		if (unknownParameter.getColumn() == -1 && !this.unknownParameters.contains(unknownParameter)) {
 			unknownParameter.setColumn( this.numberOfUnknownParameters++ );
 			this.unknownParameters.add( unknownParameter );
-		}
-	}
-	
-	/**
-	 * @deprecated - Debugging only
-	 * @param coordinates
-	 */
-	public void add(List<ObjectCoordinate> coordinates) {
-		for (ObjectCoordinate coordinate : coordinates) {
-			this.addUnknownParameter(coordinate.getX());
-			this.addUnknownParameter(coordinate.getY());
-			this.addUnknownParameter(coordinate.getZ());
 		}
 	}
 	
@@ -762,15 +616,8 @@ public class BundleAdjustment {
 	}
 	
 	private void prepareUnknownParameters() {
-		for (Camera camera : this.cameras) {
-			// add parameters of interior orientation
-			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
-			
+		for (Camera camera : this.cameras) {		
 			for (Image image : camera) {
-				// add parameters of exterior orientation
-				ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
-
-				// add pixel coordinatens as observations
 				for (ImageCoordinate imageCoordinate : image) {
 					imageCoordinate.getX().setRow( this.numberOfObservations++ );
 					imageCoordinate.getY().setRow( this.numberOfObservations++ );
@@ -778,47 +625,30 @@ public class BundleAdjustment {
 					ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
 					this.objectCoordinates.add(objectCoordinate);
 
+					// add object coordinates as unknowns
 					this.addUnknownParameter(objectCoordinate.getX());
 					this.addUnknownParameter(objectCoordinate.getY());
 					this.addUnknownParameter(objectCoordinate.getZ());
 
-					this.addObservation(objectCoordinate.getX(), imageCoordinate.getX());
-					this.addObservation(objectCoordinate.getX(), imageCoordinate.getY());
-
-					this.addObservation(objectCoordinate.getY(), imageCoordinate.getX());
-					this.addObservation(objectCoordinate.getY(), imageCoordinate.getY());
-
-					this.addObservation(objectCoordinate.getZ(), imageCoordinate.getX());
-					this.addObservation(objectCoordinate.getZ(), imageCoordinate.getY());
-
-					for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
-						this.addObservation(unknownParameter, imageCoordinate.getX());
-						this.addObservation(unknownParameter, imageCoordinate.getY());
-					}
-
-					for (UnknownParameter<ExteriorOrientation> unknownParameter : exteriorOrientation) {
-						this.addObservation(unknownParameter, imageCoordinate.getX());
-						this.addObservation(unknownParameter, imageCoordinate.getY());
-					}
-
+					// add pixel coordinates as observations
+					this.addObservationGroup(imageCoordinate);
 				}
 			}
 		}
 		
 		for (Camera camera : this.cameras) {
+			// add parameters of interior orientation
 			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 			for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
-				if (unknownParameter.getColumn() == -1) {
-					this.addUnknownParameter(unknownParameter);
-					if (unknownParameter.getColumn() != -1)	
-						this.numberOfInteriorOrientationParameters++;
-				}
+				if (unknownParameter.getColumn() == -1)
+					this.numberOfInteriorOrientationParameters++;
+				this.addUnknownParameter(unknownParameter);
 			}
 		}
 		
 		for (Camera camera : this.cameras) {
 			for (Image image : camera) {
-				// add parameters of exterior orientation
+				// add parameters of exterior orientation per image
 				ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
 				for (UnknownParameter<ExteriorOrientation> unknownParameter : exteriorOrientation)
 					this.addUnknownParameter(unknownParameter);
@@ -839,13 +669,7 @@ public class BundleAdjustment {
 			this.addUnknownParameter(objectCoordinateB.getY());
 			this.addUnknownParameter(objectCoordinateB.getZ());
 
-			this.addObservation(objectCoordinateA.getX(), scaleBar.getLength());
-			this.addObservation(objectCoordinateA.getY(), scaleBar.getLength());
-			this.addObservation(objectCoordinateA.getZ(), scaleBar.getLength());
-
-			this.addObservation(objectCoordinateB.getX(), scaleBar.getLength());
-			this.addObservation(objectCoordinateB.getY(), scaleBar.getLength());
-			this.addObservation(objectCoordinateB.getZ(), scaleBar.getLength());
+			this.addObservationGroup(scaleBar);
 		}
 		
 		this.detectRankDefect();
@@ -870,8 +694,8 @@ public class BundleAdjustment {
 		UpperSymmBandMatrix V = new UpperSymmBandMatrix( N.numRows(), 0 );
 		DenseVector n = new DenseVector( N.numRows() );
 		
-		for (ObservationParameter<?> observation : this.observations) {
-			PartialDerivativeFactory.getPartialDerivative(this.sigma2apriori, N, n, observation);
+		for (ObservationParameterGroup<?> observations : this.observationGroups) {
+			PartialDerivativeFactory.getPartialDerivative(this.sigma2apriori, N, n, observations);
 		}
 
 		this.addDatumConditionRows(N);
