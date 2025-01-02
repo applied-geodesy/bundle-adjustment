@@ -123,25 +123,25 @@ public class JAiCov implements PropertyChangeListener {
 					uy = Math.sqrt(Math.abs(D.get(Y.getColumn(), Y.getColumn())));
 					uz = Math.sqrt(Math.abs(D.get(Z.getColumn(), Z.getColumn())));
 				}
-				String formattedStr = String.format(Locale.ENGLISH, template, objectCoordinate.getName(), x, y, z, ux, uy, uz, datum);
-				System.out.println(formattedStr);
+				System.out.println(String.format(Locale.ENGLISH, template, objectCoordinate.getName(), x, y, z, ux, uy, uz, datum));
 			}
+			System.out.println();
 			
 			for (Camera camera : cameras) {
 				InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 				for (UnknownParameter<InteriorOrientation> interiorOrientationParameter : interiorOrientation) {
 					System.out.println(String.format(Locale.ENGLISH, "%-25s = %+12.8f %s", interiorOrientationParameter.getParameterType().name(), interiorOrientationParameter.getValue(), interiorOrientationParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
 				}
-				System.out.println();
 			}
-
+			System.out.println();
+			
 			// print some statistical parameters
 			System.out.println("Number of observations:           " + adjustment.getNumberOfObservations());
 			System.out.println("Number of unknown parameters:     " + adjustment.getNumberOfUnknownParameters());
 			System.out.println("Degree of freedom:                " + adjustment.getDegreeOfFreedom());
 			System.out.println("Variances of unit weight:         1.0 : " + adjustment.getVarianceFactorAposteriori() / adjustment.getVarianceFactorApriori());
 			System.out.println("Variances of unit weight (ratio): " + adjustment.getVarianceFactorApriori() + " : " + adjustment.getVarianceFactorAposteriori());
-			System.out.println("Estimation time:                  " + ((System.currentTimeMillis() - t)/1000.0) + " sec");	
+			System.out.println("Estimation time:                  " + ((System.currentTimeMillis() - t)/1000.0) + " sec");
 		}
 	}
 }
