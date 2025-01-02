@@ -23,11 +23,14 @@ package org.applied_geodesy.adjustment.bundle;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
+import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 
 import no.uib.cipr.matrix.DenseMatrix;
@@ -38,16 +41,26 @@ import no.uib.cipr.matrix.UpperSymmPackMatrix;
 class PartialDerivativeFactory {
 	private PartialDerivativeFactory() {}
 
-	static double getMisclosure(ObservationParameter<?> observation) {
-		ParameterType observationParamType = observation.getParameterType();
-		if (observationParamType == ParameterType.IMAGE_COORDINATE_X || observationParamType == ParameterType.IMAGE_COORDINATE_Y)
-			return observation.getValue() - getCollinearityEquationValue( (ImageCoordinate)observation.getReference(), observationParamType);
-		else if (observationParamType == ParameterType.SCALE_BAR_LENGTH) 
-			return observation.getValue() - getDistanceValue((ScaleBar)observation.getReference());
-		return 0;
+	static Map<ParameterType, Double> getMisclosures(ObservationParameterGroup<?> observations) {
+		Map<ParameterType, Double> values = Collections.emptyMap();
+		
+		if (observations instanceof ImageCoordinate) 
+			values = getCollinearityEquationValues((ImageCoordinate)observations);			
+		else if (observations instanceof ScaleBar)
+			values = getDistanceValue((ScaleBar)observations);
+		
+		Map<ParameterType, Double> misclosures = new HashMap<ParameterType, Double>(observations.getNumberOfParameters());
+		for (ObservationParameter<?> observation : observations) {
+			ParameterType parameterType = observation.getParameterType();
+			double value = values.get(parameterType);
+			// estimate residuals (== observed - calculated)
+			misclosures.put(parameterType, observation.getValue() - value);
+		}
+		
+		return misclosures;
 	}
 
-	public static double getDistanceValue(ScaleBar scaleBar) {
+	private static Map<ParameterType, Double> getDistanceValue(ScaleBar scaleBar) {
 		ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
 		ObjectCoordinate objectCoordinateB = scaleBar.getObjectCoordinateB();
 
@@ -59,14 +72,16 @@ class PartialDerivativeFactory {
 		double YB = objectCoordinateB.getY().getValue();
 		double ZB = objectCoordinateB.getZ().getValue();
 
-		double dX = XB-XA;
-		double dY = YB-YA;
-		double dZ = ZB-ZA;
+		double dX = XB - XA;
+		double dY = YB - YA;
+		double dZ = ZB - ZA;
 
-		return Math.sqrt( dX*dX + dY*dY + dZ*dZ );
+		return Map.ofEntries( 
+				Map.entry(ParameterType.SCALE_BAR_LENGTH, Math.sqrt( dX*dX + dY*dY + dZ*dZ ))
+		);
 	}
 
-	public static double getCollinearityEquationValue(ImageCoordinate imageCoordinate, ParameterType observationParamType) {
+	private static Map<ParameterType, Double> getCollinearityEquationValues(ImageCoordinate imageCoordinate) {
 		Image image = imageCoordinate.getReference();
 		Camera camera = image.getReference();
 		ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
@@ -160,25 +175,22 @@ class PartialDerivativeFactory {
 		
 		double deltaX = dRadX + dTanX + dAffX + dDistX;
 		double deltaY = dRadY + dTanY + dAffY + dDistY;
-
-		if (observationParamType == ParameterType.IMAGE_COORDINATE_X)
-			return x0 + xs + deltaX;
-		else if (observationParamType == ParameterType.IMAGE_COORDINATE_Y)
-			return y0 + ys + deltaY;
-		return 0;
+		
+		return Map.ofEntries( 
+				Map.entry(ParameterType.IMAGE_COORDINATE_X, x0 + xs + deltaX),
+				Map.entry(ParameterType.IMAGE_COORDINATE_Y, y0 + ys + deltaY) 
+		);
 	}
-
-	static GaussMarkovEquations getPartialDerivative(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ObservationParameter<?> observation) {
-		ParameterType observationParamType = observation.getParameterType();
-
-		if (observationParamType == ParameterType.IMAGE_COORDINATE_X) // ParameterType.IMAGE_COORDINATE_Y
-			return getPartialDerivativeImageCoordinate(sigma2apriori, NEQ, neq, (ImageCoordinate)observation.getReference());
-		else if (observationParamType == ParameterType.SCALE_BAR_LENGTH)
-			return getPartialDerivativeScaleBar(sigma2apriori, NEQ, neq, (ScaleBar)observation.getReference());
+	
+	static GaussMarkovEquations getPartialDerivative(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ObservationParameterGroup<?> observations) {
+		if (observations instanceof ImageCoordinate) 
+			return getPartialDerivativeImageCoordinate(sigma2apriori, NEQ, neq, (ImageCoordinate)observations);
+		else if (observations instanceof ScaleBar)
+			return getPartialDerivativeScaleBar(sigma2apriori, NEQ, neq, (ScaleBar)observations);
 		
 		return null;
 	}
-
+	
 	private static GaussMarkovEquations getPartialDerivativeScaleBar(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ScaleBar scaleBar) {
 		ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
 		ObjectCoordinate objectCoordinateB = scaleBar.getObjectCoordinateB();
@@ -200,10 +212,12 @@ class PartialDerivativeFactory {
 		double ax = dX/lengthAB;
 		double ay = dY/lengthAB;
 		double az = dZ/lengthAB;
+		
+		int numberOfRows = scaleBar.getNumberOfParameters();
 
-		DenseMatrix A = new DenseMatrix(1, neq.size());
-		DenseVector w = new DenseVector(1);
-		UpperSymmBandMatrix P = new UpperSymmBandMatrix(1, 0);
+		DenseMatrix A = new DenseMatrix(numberOfRows, neq.size());
+		DenseVector w = new DenseVector(numberOfRows);
+		UpperSymmBandMatrix P = new UpperSymmBandMatrix(numberOfRows, 0);
 
 		P.set(0, 0, sigma2apriori/scaleBar.getLength().getVariance());
 		w.set(0, scaleBar.getLength().getValue() - lengthAB);
@@ -364,12 +378,14 @@ class PartialDerivativeFactory {
 
 		double varianceX = imageCoordinate.getX().getVariance();
 		double varianceY = imageCoordinate.getY().getVariance();
+		
+		int numberOfRows = imageCoordinate.getNumberOfParameters();
 
 		// 3 ... object point, 13 ... interior orientation, 6 ... exterior orientation, datum defect
-		DenseVector w = new DenseVector(2);
-		DenseMatrix A = new DenseMatrix(2, neq.size());
+		DenseVector w = new DenseVector(numberOfRows);
+		DenseMatrix A = new DenseMatrix(numberOfRows, neq.size());
 
-		UpperSymmBandMatrix P = new UpperSymmBandMatrix(2, 0);
+		UpperSymmBandMatrix P = new UpperSymmBandMatrix(numberOfRows, 0);
 		P.set(0, 0, sigma2apriori/varianceX);
 		P.set(1, 1, sigma2apriori/varianceY);
 

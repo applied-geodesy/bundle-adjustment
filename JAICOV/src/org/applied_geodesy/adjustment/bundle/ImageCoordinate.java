@@ -21,10 +21,13 @@
 
 package org.applied_geodesy.adjustment.bundle;
 
+import java.util.Iterator;
+
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
+import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 
-public class ImageCoordinate implements Referenceable<Image> {
+public class ImageCoordinate implements Referenceable<Image>, ObservationParameterGroup<ImageCoordinate> {
 	private final ObjectCoordinate objectCoordinate;
 	private final Image image;
 	
@@ -62,5 +65,29 @@ public class ImageCoordinate implements Referenceable<Image> {
 	@Override
 	public String toString() {
 		return "ImageCoordinate [name=" + this.objectCoordinate.getName() + ", x=" + this.x.getValue() + ", y=" + this.y.getValue() + ", image=" + this.image.getId() + ", ]";
+	}
+
+	@Override
+	public Iterator<ObservationParameter<ImageCoordinate>> iterator() {
+		return new Iterator<ObservationParameter<ImageCoordinate>>() {
+			private byte component = 0;
+			@Override
+			public boolean hasNext() {
+				return this.component < 2;
+			}
+
+			@Override
+			public ObservationParameter<ImageCoordinate> next() {
+				if (this.component > 1)
+					return null;
+				
+				return this.component++ == 0 ? x : y;
+			}
+		};
+	}
+
+	@Override
+	public final int getNumberOfParameters() {
+		return 2;
 	}
 }
