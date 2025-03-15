@@ -63,25 +63,25 @@ public class ExteriorOrientation implements Referenceable<Image>, Iterable<Unkno
 		
 		double cosKappa = Math.cos(kappa);
 		double sinKappa = Math.sin(kappa);
-		
-		// Rotationsmatrix (Gl 2.30, S. 61)
-        double r11 =  cosPhi * cosKappa;
-        double r12 = -cosPhi * sinKappa;
-        double r13 =  sinPhi;
-        
-        double r21 =  cosOmega * sinKappa + sinOmega * sinPhi * cosKappa;
-        double r22 =  cosOmega * cosKappa - sinOmega * sinPhi * sinKappa;
-        double r23 = -sinOmega * cosPhi;
-        
-        double r31 = sinOmega * sinKappa - cosOmega * sinPhi * cosKappa;
-        double r32 = sinOmega * cosKappa + cosOmega * sinPhi * sinKappa;
-        double r33 = cosOmega * cosPhi;
-        
-        return new double[][] {
-        	{r11, r12, r13},
-        	{r21, r22, r23},
-        	{r31, r32, r33}
-        };
+
+		// Rotation matrix (Eq 2.30, p. 61)
+		double r11 =  cosPhi * cosKappa;
+		double r12 = -cosPhi * sinKappa;
+		double r13 =  sinPhi;
+
+		double r21 =  cosOmega * sinKappa + sinOmega * sinPhi * cosKappa;
+		double r22 =  cosOmega * cosKappa - sinOmega * sinPhi * sinKappa;
+		double r23 = -sinOmega * cosPhi;
+
+		double r31 = sinOmega * sinKappa - cosOmega * sinPhi * cosKappa;
+		double r32 = sinOmega * cosKappa + cosOmega * sinPhi * sinKappa;
+		double r33 = cosOmega * cosPhi;
+
+		return new double[][] {
+			{r11, r12, r13},
+			{r21, r22, r23},
+			{r31, r32, r33}
+		};
 	}
 	
 	@Override
