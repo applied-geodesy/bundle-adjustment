@@ -19,7 +19,8 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.util.io.reader;
+
+package org.applied_geodesy.util.io.reader.aicon;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,23 +30,24 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
+import org.applied_geodesy.util.io.reader.SourceFileReader;
 
-public class ObjectCoordinateFlatFileReader extends SourceFileReader<Map<String, ObjectCoordinate>> {
+public class OBCFileReader extends SourceFileReader<Map<String, ObjectCoordinate>> {
 	private Map<String, ObjectCoordinate> coordinates = new LinkedHashMap<String, ObjectCoordinate>();
 	
-	public ObjectCoordinateFlatFileReader() {
+	public OBCFileReader() {
 		this.reset();
 	}
 	
-	public ObjectCoordinateFlatFileReader(String fileName) {
+	public OBCFileReader(String fileName) {
 		this(new File(fileName).toPath());
 	}
 
-	public ObjectCoordinateFlatFileReader(File sf) {
+	public OBCFileReader(File sf) {
 		this(sf.toPath());
 	}
 	
-	public ObjectCoordinateFlatFileReader(Path path) {
+	public OBCFileReader(Path path) {
 		super(path);
 		this.reset();
 	}
@@ -73,9 +75,25 @@ public class ObjectCoordinateFlatFileReader extends SourceFileReader<Map<String,
 		
 		ObjectCoordinate coordinate = null;
 		try {
-			
+			//  1. Spalte Punktnummer
+			//  2. Spalte Objektkoordinate X
+			//  3. Spalte Objektkoordinate Y
+			//  4. Spalte Objektkoordinate Z
+			//  5. Spalte Standardabweichung in X
+			//  6. Spalte Standardabweichung in Y
+			//  7. Spalte Standardabweichung in Z
+			//  8. Spalte Strahlen = Anzahl der Bilder, in denen der Punkt gemessen wurde.
+			//  9. Spalte Status des Bildes 1 = aktiv; 0 = inaktiv
+			// 10. Spalte Parameter NEU; Bündelausgleichung: Neupunkt wenn ungleich 0
+			// 11. Spalte Datumspunkt, wenn ungleich 0
+
 			String columns[] = line.split("\\s+");
 			if (columns.length < 4)
+				return;
+			
+			boolean enable = columns.length < 11 || !columns[8].trim().equalsIgnoreCase("0");
+			
+			if (!enable)
 				return;
 			
 			String name = columns[0].trim(); 
@@ -83,10 +101,7 @@ public class ObjectCoordinateFlatFileReader extends SourceFileReader<Map<String,
 			double y = Double.parseDouble(columns[2].trim());
 			double z = Double.parseDouble(columns[3].trim());
 			
-			boolean datum = columns.length > 4 && columns[4].trim().equalsIgnoreCase("1");
-			
 			coordinate = new ObjectCoordinate(name, x, y, z);
-			coordinate.setDatum(datum);
 			this.coordinates.put(name, coordinate);
 		}
 		catch (Exception err) {

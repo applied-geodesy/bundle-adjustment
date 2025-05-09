@@ -19,28 +19,35 @@
  *                                                                      *
  ***********************************************************************/
 
-package org.applied_geodesy.adjustment.bundle.jaicov;
+package org.applied_geodesy.adjustment.bundle.example;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Collection;
 import java.util.Locale;
+import java.util.Map;
 
 import org.applied_geodesy.adjustment.EstimationStateType;
 import org.applied_geodesy.adjustment.EstimationType;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
-import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
-import org.applied_geodesy.adjustment.bundle.BundleAdjustment.MatrixInversion;
-import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.Camera;
 import org.applied_geodesy.adjustment.bundle.Image;
 import org.applied_geodesy.adjustment.bundle.ImageCoordinate;
+import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
+import org.applied_geodesy.adjustment.bundle.ScaleBar;
+import org.applied_geodesy.adjustment.bundle.BundleAdjustment.MatrixInversion;
+import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
-import org.applied_geodesy.util.io.reader.AICONReportFileReader;
+import org.applied_geodesy.util.io.reader.aicon.EORFileReader;
+import org.applied_geodesy.util.io.reader.aicon.IORFileReader;
+import org.applied_geodesy.util.io.reader.aicon.OBCFileReader;
+import org.applied_geodesy.util.io.reader.aicon.PHCFileReader;
+import org.applied_geodesy.util.io.reader.aicon.ScaleFileReader;
 
 import no.uib.cipr.matrix.Matrix;
 
-public class JAiCov implements PropertyChangeListener {
+public class ExampleFlatFiles implements PropertyChangeListener {
 
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
@@ -55,32 +62,60 @@ public class JAiCov implements PropertyChangeListener {
 
 		long t = System.currentTimeMillis();
 		
-		// Read adjustment report from Aicon Studio 3D
-		AICONReportFileReader reader = new AICONReportFileReader("example/example.htm");
-
-		// Create an adjustment object using a specific file reader
-		BundleAdjustment adjustment = reader.readAndImport();
+		final String basepath = "example/example";
 		
-		// Get all camera objects from reader
-		Collection<Camera> cameras = reader.getCameras();
+		// Read coordinates of object points
+		OBCFileReader obcReader = new OBCFileReader(basepath + ".obc");
+		Map<String, ObjectCoordinate> coordinates = obcReader.readAndImport();
+		
+		// Read scalebar definition
+		ScaleFileReader scaleReader = new ScaleFileReader(basepath + ".scale", coordinates);
+		Collection<ScaleBar> scaleBars = scaleReader.readAndImport();
+		
+		// Read interior orientation and create camera object
+		IORFileReader iorReader = new IORFileReader(basepath + ".ior");
+		Camera camera = iorReader.readAndImport();
+		
+		// Fixing some interior orientation parameters
+		camera.getInteriorOrientation().get(ParameterType.RADIAL_DISTORTION_A3).setColumn(Integer.MAX_VALUE);
+		
+		camera.getInteriorOrientation().get(ParameterType.AFFINITY_AND_SHEAR_C1).setColumn(Integer.MAX_VALUE);
+		camera.getInteriorOrientation().get(ParameterType.AFFINITY_AND_SHEAR_C2).setColumn(Integer.MAX_VALUE);
+		
+		camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D1).setColumn(Integer.MAX_VALUE);
+		camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D2).setColumn(Integer.MAX_VALUE);
+		camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D3).setColumn(Integer.MAX_VALUE);
+		
+		// Read taken images and exterior orientation parameters of images
+		EORFileReader eorReader = new EORFileReader(basepath + ".eor", camera);
+		eorReader.readAndImport();
 
+		// Read image coordinates and add to camera
+		PHCFileReader phcReader = new PHCFileReader(basepath + ".phc", camera, coordinates);
+		phcReader.readAndImport();
+		
 		// Specify the points, which are used to define the datum of the frame
 		// !!!this step is not mandatory!!!
-		for (Camera camera : cameras) {
+		for (Image image : camera) {
 			// Call the images taken from this camera object
-			for (Image image : camera) {
-				// Extract the image coordinates
-				for (ImageCoordinate imageCoordinate : image) {
-					// Select corresponding object coordinates
-					ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
-					if (objectCoordinate.getName().length() > 3)
-						objectCoordinate.setDatum(Boolean.FALSE);
-				}
+			// and extract the image coordinates
+			for (ImageCoordinate imageCoordinate : image) {
+				// Select corresponding object coordinates
+				ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
+				if (objectCoordinate.getName().length() > 3)
+					objectCoordinate.setDatum(Boolean.FALSE);
 			}
-		}
-
+		}	
+		
+		// Create an adjustment object
+		BundleAdjustment adjustment = new BundleAdjustment();
+		// Add camera(s) and Scalebar(s) to adjustment object
+		adjustment.add(camera);
+		for (ScaleBar scaleBar : scaleBars)
+			adjustment.add(scaleBar);
+		
 		// Add a listener to get notifications of the adjustment process (not required)
-		adjustment.addPropertyChangeListener(new JAiCov());
+		adjustment.addPropertyChangeListener(new ExampleFlatFiles());
 		// Select the estimation type, e.g., L2Norm or Simulation
 		adjustment.setEstimationType(EstimationType.L2NORM);
 		// Use NONE, if the dispersion matrix is not required
@@ -127,12 +162,11 @@ public class JAiCov implements PropertyChangeListener {
 			}
 			System.out.println();
 			
-			for (Camera camera : cameras) {
-				InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
-				for (UnknownParameter<InteriorOrientation> interiorOrientationParameter : interiorOrientation) {
-					System.out.println(String.format(Locale.ENGLISH, "%-25s = %+12.8f %s", interiorOrientationParameter.getParameterType().name(), interiorOrientationParameter.getValue(), interiorOrientationParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
-				}
+			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
+			for (UnknownParameter<InteriorOrientation> interiorOrientationParameter : interiorOrientation) {
+				System.out.println(String.format(Locale.ENGLISH, "%-25s = %+12.10f %s", interiorOrientationParameter.getParameterType().name(), interiorOrientationParameter.getValue(), interiorOrientationParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
 			}
+
 			System.out.println();
 			
 			// print some statistical parameters
