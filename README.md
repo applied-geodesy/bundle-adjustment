@@ -56,7 +56,7 @@ The library was developed within the international project [GeoMetre](https://ww
 The bundle adjustment is written in the platform-independent programming language Java and, therefore, the software is runnable at each platform and operation system that provides a Java Runtime Environment (JRE). The JRE can be found for several platforms at Oracles [download page](https://java.oracle.com) or at the [OpenJDK](https://openjdk.java.net)-project pages.
 
 ## Example
-The following [code snippet](https://github.com/applied-geodesy/bundle-adjustment/blob/main/JAICOV/src/org/applied_geodesy/adjustment/bundle/jaicov/JAiCov.java) demonstrates the use case of the library.
+The following [code snippet](https://github.com/applied-geodesy/bundle-adjustment/blob/main/JAICOV/src/org/applied_geodesy/adjustment/bundle/example/ExampleReport.java) demonstrates the use case of the library.
 
 ```java
 // Create an adjustment object using your specific source file reader
