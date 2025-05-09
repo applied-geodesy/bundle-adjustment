@@ -78,10 +78,8 @@ public class ScaleBarFlatFileReader extends SourceFileReader<List<ScaleBar>> {
 		
 		ScaleBar scaleBar = null;
 		try {
-			
-			
-//			506     507        789.8480    0.0100
-//		    510     511        789.7940    0.0100
+			// 506     507        789.8480    0.0100
+			// 510     511        789.7940    0.0100
 			
 			String columns[] = line.split("\\s+");
 			if (columns.length < 4)
@@ -102,7 +100,6 @@ public class ScaleBarFlatFileReader extends SourceFileReader<List<ScaleBar>> {
 		}
 		catch (Exception err) {
 			err.printStackTrace();
-			// nichts, Beobachtung unbrauchbar...
 			return;
 		}	
 	}

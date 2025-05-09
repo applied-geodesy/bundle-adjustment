@@ -19,75 +19,89 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.util.io.reader;
+package org.applied_geodesy.util.io.reader.aicon;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
+import org.applied_geodesy.adjustment.bundle.ScaleBar;
+import org.applied_geodesy.util.io.reader.SourceFileReader;
 
-public class ObjectCoordinateFlatFileReader extends SourceFileReader<Map<String, ObjectCoordinate>> {
-	private Map<String, ObjectCoordinate> coordinates = new LinkedHashMap<String, ObjectCoordinate>();
+public class ScaleFileReader extends SourceFileReader<List<ScaleBar>> {
+	private final Map<String, ObjectCoordinate> objectCoordinates;
+	private List<ScaleBar> scaleBars = new ArrayList<ScaleBar>();
 	
-	public ObjectCoordinateFlatFileReader() {
+	public ScaleFileReader(Map<String, ObjectCoordinate> objectCoordinates) {
+		this.objectCoordinates = objectCoordinates;
 		this.reset();
 	}
 	
-	public ObjectCoordinateFlatFileReader(String fileName) {
-		this(new File(fileName).toPath());
+	public ScaleFileReader(String fileName, Map<String, ObjectCoordinate> objectCoordinates) {
+		this(new File(fileName).toPath(), objectCoordinates);
 	}
 
-	public ObjectCoordinateFlatFileReader(File sf) {
-		this(sf.toPath());
+	public ScaleFileReader(File sf, Map<String, ObjectCoordinate> objectCoordinates) {
+		this(sf.toPath(), objectCoordinates);
 	}
 	
-	public ObjectCoordinateFlatFileReader(Path path) {
+	public ScaleFileReader(Path path, Map<String, ObjectCoordinate> objectCoordinates) {
 		super(path);
+		this.objectCoordinates = objectCoordinates;
 		this.reset();
 	}
 	
 	@Override
 	public void reset() {
-		if (this.coordinates == null) 
-			this.coordinates = new LinkedHashMap<String, ObjectCoordinate>();
+		if (this.scaleBars == null)
+			this.scaleBars = new ArrayList<ScaleBar>();
 		
-		this.coordinates.clear();
+		this.scaleBars.clear();
 	}
 
 	@Override
-	public Map<String, ObjectCoordinate> readAndImport() throws IOException, SQLException {
+	public List<ScaleBar> readAndImport() throws IOException, SQLException {
 		this.reset();
 		this.ignoreLinesWhichStartWith("#");
 		
 		super.read();
-		return this.coordinates;
+		return this.scaleBars;
 	}
 
 	@Override
 	public void parse(String line) {
 		line = line.trim();
 		
-		ObjectCoordinate coordinate = null;
+		ScaleBar scaleBar = null;
 		try {
+			// 0 "Scalebar"        506        507   1389.6880      0.0100  1
+			
+			int pos = line.lastIndexOf("\"");
+			line = line.substring(pos + 1).trim();
 			
 			String columns[] = line.split("\\s+");
-			if (columns.length < 4)
+			if (columns.length < 5)
 				return;
 			
-			String name = columns[0].trim(); 
-			double x = Double.parseDouble(columns[1].trim());
-			double y = Double.parseDouble(columns[2].trim());
-			double z = Double.parseDouble(columns[3].trim());
+			boolean enable = !columns[4].trim().equalsIgnoreCase("0");
 			
-			boolean datum = columns.length > 4 && columns[4].trim().equalsIgnoreCase("1");
+			String nameA = columns[0].trim();
+			String nameB = columns[1].trim();
+	
+			if (!enable || !this.objectCoordinates.containsKey(nameA) || !this.objectCoordinates.containsKey(nameB))
+				return;
 			
-			coordinate = new ObjectCoordinate(name, x, y, z);
-			coordinate.setDatum(datum);
-			this.coordinates.put(name, coordinate);
+			double length = Double.parseDouble(columns[2].trim());
+			double sigma  = Double.parseDouble(columns[3].trim());
+			
+			scaleBar = new ScaleBar(this.objectCoordinates.get(nameA), this.objectCoordinates.get(nameB),length,sigma);
+			
+			this.scaleBars.add(scaleBar);
 		}
 		catch (Exception err) {
 			err.printStackTrace();

@@ -19,7 +19,7 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.util.io.reader;
+package org.applied_geodesy.util.io.reader.aicon;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,24 +30,25 @@ import org.applied_geodesy.adjustment.bundle.Camera;
 import org.applied_geodesy.adjustment.bundle.Image;
 import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
+import org.applied_geodesy.util.io.reader.SourceFileReader;
 
-public class ExteriorOrientationFlatFileReader extends SourceFileReader<Camera> {
+public class EORFileReader extends SourceFileReader<Camera> {
 	private final Camera camera;
 
-	public ExteriorOrientationFlatFileReader(Camera camera) {
+	public EORFileReader(Camera camera) {
 		this.camera = camera;
 		this.reset();
 	}
 	
-	public ExteriorOrientationFlatFileReader(String fileName, Camera camera) {
+	public EORFileReader(String fileName, Camera camera) {
 		this(new File(fileName).toPath(), camera);
 	}
 
-	public ExteriorOrientationFlatFileReader(File sf, Camera camera) {
+	public EORFileReader(File sf, Camera camera) {
 		this(sf.toPath(), camera);
 	}
 	
-	public ExteriorOrientationFlatFileReader(Path path, Camera camera) {
+	public EORFileReader(Path path, Camera camera) {
 		super(path);
 		this.camera = camera;
 		this.reset();
@@ -69,34 +70,48 @@ public class ExteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 	public void parse(String line) {
 		line = line.trim();
 		try {
-			
-			
-		    // 1 10  6.9023  -1976.8731  -1394.6327     2.15936712 -0.02770565 -0.03094882
-		    // 1 11 61.7070  -1987.8665  -1376.9822     2.13014527 -0.06227612 -1.57543791
-		    // 1 12  3.9796  -1983.6757  -1410.3555     2.08371542 -0.04995296  1.52097805
-		    // 1 12 75.4013  -1802.6736  -1501.9709     2.13684490 -0.09142014 -3.11116284
+			//  1. Spalte Bildnummer
+			//  2. Spalte Kameranummer
+			//  3. Spalte X- Koordinate
+			//  4. Spalte Y- Koordinate
+			//  5. Spalte Z- Koordinate
+			//  6. Spalte Drehwinkel Omega
+			//  7. Spalte Drehwinkel Phi
+			//  8. Spalte Drehwinkel Kappa
+			//  9. Spalte Drehreihenfolge 0 = CAP-Rotation
+			// 10. Spalte Status des Bildes 
+			//       0 = nicht aktiv, > 0 = aktiv
+			// 11. Spalte Status der Bildorientierung
+			//       1 = Bild nicht orientiert
+			//       2 = Kamerastandort aus Vororientierung 
+			//       3 = Kamerastandort aus Bündelausgleichung
+			//
 			
 			String columns[] = line.split("\\s+");
-			if (columns.length < 8)
+			if (columns.length < 11)
 				return;
 			
-			long camid = Long.parseLong(columns[0].trim());
+			long camid = Long.parseLong(columns[1].trim());
+			
+			boolean capRotation =  columns[8].trim().equalsIgnoreCase("0");
+			boolean enable      = !columns[9].trim().equalsIgnoreCase("0");
+			boolean orient      = !columns[10].trim().equalsIgnoreCase("1");
 
-			if (camid != this.camera.getId())
+			if (!enable || !capRotation || !orient || camid != this.camera.getId())
 				return;
 			
-			long imgid = Long.parseLong(columns[1].trim());
+			long imgid = Long.parseLong(columns[0].trim());
 
 			double X0 = Double.parseDouble(columns[2].trim());
 			double Y0 = Double.parseDouble(columns[3].trim());
 			double Z0 = Double.parseDouble(columns[4].trim());
-
+			
 			double OMEGA = Double.parseDouble(columns[5].trim());
 			double PHI   = Double.parseDouble(columns[6].trim());
 			double KAPPA = Double.parseDouble(columns[7].trim());
 
 			Image image = this.camera.add(imgid);
-
+			
 			ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
 			exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).setValue(X0);
 			exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).setValue(Y0);

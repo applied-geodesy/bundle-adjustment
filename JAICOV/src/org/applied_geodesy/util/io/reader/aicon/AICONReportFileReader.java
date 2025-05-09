@@ -19,7 +19,7 @@
  *                                                                      *
  ***********************************************************************/
 
-package org.applied_geodesy.util.io.reader;
+package org.applied_geodesy.util.io.reader.aicon;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,6 +38,7 @@ import org.applied_geodesy.adjustment.bundle.Image;
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
 import org.applied_geodesy.adjustment.bundle.ScaleBar;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
+import org.applied_geodesy.util.io.reader.SourceFileReader;
 
 public class AICONReportFileReader extends SourceFileReader<BundleAdjustment> {
 
