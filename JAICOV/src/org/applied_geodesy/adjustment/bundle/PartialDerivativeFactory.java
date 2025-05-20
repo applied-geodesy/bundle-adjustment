@@ -130,7 +130,7 @@ class PartialDerivativeFactory {
 		double cosKappa = Math.cos(kappa);
 		double sinKappa = Math.sin(kappa);
 
-		// Rotationsmatrix (Gl 2.30, S. 61)
+		// Rotation (Luhmann (2023) Eq. 2.31, p. 62)
 		double r11 =  cosPhi * cosKappa;
 		double r12 = -cosPhi * sinKappa;
 		double r13 =  sinPhi;
@@ -330,7 +330,7 @@ class PartialDerivativeFactory {
 		double cosKappa = Math.cos(kappa);
 		double sinKappa = Math.sin(kappa);
 
-		// Rotationsmatrix (Gl 2.30, S. 61)
+		// Rotation (Luhmann (2023) Eq. 2.31, p. 62)
 		double r11 =  cosPhi * cosKappa;
 		double r12 = -cosPhi * sinKappa;
 		double r13 =  sinPhi;
