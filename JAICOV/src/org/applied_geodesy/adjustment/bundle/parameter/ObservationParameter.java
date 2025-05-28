@@ -46,7 +46,9 @@ public class ObservationParameter<T> extends Parameter implements Referenceable<
 	}
 	
 	public void setVariance(double variance) {
-		this.variance = variance > 0 ? variance : this.variance;
+		if (variance <= 0)
+			throw new IllegalArgumentException("Error, variance must be positive: " + variance);
+		this.variance = variance;
 	}
 
 	@Override

@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.applied_geodesy.adjustment.Constant;
@@ -386,16 +385,9 @@ public class BundleAdjustment {
 		
 		if (updateCompleteModel) {
 			this.omega = 0.0;
-			for (ObservationParameterGroup<?> observations : this.observationGroups) {
-				Map<ParameterType, Double> residuals = PartialDerivativeFactory.getMisclosures(observations);
-				for (ObservationParameter<?> observation : observations) {
-					double residuum = 0;
-					ParameterType parameterType = observation.getParameterType();
-					if (this.estimationType != EstimationType.SIMULATION && residuals.containsKey(parameterType)) {
-						residuum = residuals.get(parameterType);
-						this.omega += residuum * residuum * this.sigma2apriori / observation.getVariance();
-					}
-				}
+			if (this.estimationType != EstimationType.SIMULATION) {
+				for (ObservationParameterGroup<?> observations : this.observationGroups)
+					this.omega += PartialDerivativeFactory.getWeightedSumOfSquaredResiduals(this.sigma2apriori, observations);
 			}
 		}
 	}
