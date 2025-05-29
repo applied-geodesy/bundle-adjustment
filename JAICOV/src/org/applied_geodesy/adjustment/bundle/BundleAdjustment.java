@@ -379,17 +379,20 @@ public class BundleAdjustment {
 			}
 		}
 		
+		// Estimate of sum of squared residuals from last adjustment step before parameter update
+		if (updateCompleteModel) 
+			this.omega = this.estimationType == EstimationType.SIMULATION ? 0.0 : this.getOmega(dx);
 		// updating model parameters --> estimated maxAbsDx
 		this.maxAbsDx = this.updateUnknownParameters(dx);
 		this.lastValidmaxAbsDx = this.maxAbsDx;
 		
-		if (updateCompleteModel) {
-			this.omega = 0.0;
-			if (this.estimationType != EstimationType.SIMULATION) {
-				for (ObservationParameterGroup<?> observations : this.observationGroups)
-					this.omega += PartialDerivativeFactory.getWeightedSumOfSquaredResiduals(this.sigma2apriori, observations);
-			}
-		}
+//		if (updateCompleteModel) {
+//			this.omega = 0.0;
+//			if (this.estimationType != EstimationType.SIMULATION) {
+//				for (ObservationParameterGroup<?> observations : this.observationGroups)
+//					this.omega += PartialDerivativeFactory.getWeightedSumOfSquaredResiduals(this.sigma2apriori, observations);
+//			}
+//		}
 	}
 	
 	/**

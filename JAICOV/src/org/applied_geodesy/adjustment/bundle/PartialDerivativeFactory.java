@@ -42,41 +42,41 @@ import no.uib.cipr.matrix.UpperSymmPackMatrix;
 class PartialDerivativeFactory {
 	private PartialDerivativeFactory() {}
 	
-	static double getWeightedSumOfSquaredResiduals(double sigma2apriori, ObservationParameterGroup<?> observations) {
-		double omega = 0.0;
-		if (observations instanceof ImageCoordinate) 
-			omega = getWeightedSumOfSquaredResiduals(sigma2apriori, (ImageCoordinate)observations);
-		else if (observations instanceof ScaleBar)
-			omega = getWeightedSumOfSquaredResiduals(sigma2apriori, (ScaleBar)observations);
-		return omega;
-	}
-	
-	private static double getWeightedSumOfSquaredResiduals(double sigma2apriori, ScaleBar scaleBar) {
-		Map<ParameterType, Double> residuals = PartialDerivativeFactory.getMisclosures(scaleBar);
-		double residuum = residuals.get(ParameterType.SCALE_BAR_LENGTH);
-		return residuum * residuum * sigma2apriori / scaleBar.getLength().getVariance();
-	}
-	
-	private static double getWeightedSumOfSquaredResiduals(double sigma2apriori, ImageCoordinate imageCoordinate) {
-		Map<ParameterType, Double> residuals = PartialDerivativeFactory.getMisclosures(imageCoordinate);
-		double residuumX = residuals.get(ParameterType.IMAGE_COORDINATE_X);
-		double residuumY = residuals.get(ParameterType.IMAGE_COORDINATE_Y);
-
-		double varianceX  = imageCoordinate.getX().getVariance();
-		double varianceY  = imageCoordinate.getY().getVariance();
-		double corrCoefXY = imageCoordinate.getCorrelationCoefficient();
-
-		if (corrCoefXY == 0)
-			return residuumX * residuumX * sigma2apriori/varianceX + residuumY * residuumY * sigma2apriori/varianceY;
-		else {
-			double invDet = sigma2apriori / ((corrCoefXY + 1.0) * varianceX * varianceY);
-			double qxx =  invDet * varianceY;
-			double qyy =  invDet * varianceX;
-			double qxy = -invDet * corrCoefXY * Math.sqrt(varianceX * varianceY);
-			
-			return residuumX * (qxx * residuumX + qxy * residuumY) + residuumY * (qxy * residuumX + qyy * residuumY);
-		}
-	}
+//	static double getWeightedSumOfSquaredResiduals(double sigma2apriori, ObservationParameterGroup<?> observations) {
+//		double omega = 0.0;
+//		if (observations instanceof ImageCoordinate) 
+//			omega = getWeightedSumOfSquaredResiduals(sigma2apriori, (ImageCoordinate)observations);
+//		else if (observations instanceof ScaleBar)
+//			omega = getWeightedSumOfSquaredResiduals(sigma2apriori, (ScaleBar)observations);
+//		return omega;
+//	}
+//	
+//	private static double getWeightedSumOfSquaredResiduals(double sigma2apriori, ScaleBar scaleBar) {
+//		Map<ParameterType, Double> residuals = PartialDerivativeFactory.getMisclosures(scaleBar);
+//		double residuum = residuals.get(ParameterType.SCALE_BAR_LENGTH);
+//		return residuum * residuum * sigma2apriori / scaleBar.getLength().getVariance();
+//	}
+//	
+//	private static double getWeightedSumOfSquaredResiduals(double sigma2apriori, ImageCoordinate imageCoordinate) {
+//		Map<ParameterType, Double> residuals = PartialDerivativeFactory.getMisclosures(imageCoordinate);
+//		double residuumX = residuals.get(ParameterType.IMAGE_COORDINATE_X);
+//		double residuumY = residuals.get(ParameterType.IMAGE_COORDINATE_Y);
+//
+//		double varianceX  = imageCoordinate.getX().getVariance();
+//		double varianceY  = imageCoordinate.getY().getVariance();
+//		double corrCoefXY = imageCoordinate.getCorrelationCoefficient();
+//
+//		if (corrCoefXY == 0)
+//			return residuumX * residuumX * sigma2apriori/varianceX + residuumY * residuumY * sigma2apriori/varianceY;
+//		else {
+//			double invDet = sigma2apriori / ((1.0 - corrCoefXY*corrCoefXY) * varianceX * varianceY);
+//			double qxx =  invDet * varianceY;
+//			double qyy =  invDet * varianceX;
+//			double qxy = -invDet * corrCoefXY * Math.sqrt(varianceX * varianceY);
+//			
+//			return residuumX * (qxx * residuumX + qxy * residuumY) + residuumY * (qxy * residuumX + qyy * residuumY);
+//		}
+//	}
 
 	static Map<ParameterType, Double> getMisclosures(ObservationParameterGroup<?> observations) {
 		Map<ParameterType, Double> values = Collections.emptyMap();
@@ -90,7 +90,7 @@ class PartialDerivativeFactory {
 		for (ObservationParameter<?> observation : observations) {
 			ParameterType parameterType = observation.getParameterType();
 			double value = values.get(parameterType);
-			// estimate residuals (== observed - calculated)
+			// estimate residuum (== observed - calculated)
 			misclosures.put(parameterType, observation.getValue() - value);
 		}
 		
@@ -207,8 +207,8 @@ class PartialDerivativeFactory {
 		double dAffY = 0;
 
 		double dDist = 1.0/N * (D1*r*r*r + D2*r*r*r*r*r + D3*r*r*r*r*r*r*r - (D1*r0*r0 + D2*r0*r0*r0*r0 + D3*r0*r0*r0*r0*r0*r0)*r);
-		double dDistX = xs*dDist/r;
-		double dDistY = ys*dDist/r;
+		double dDistX = xs * dDist/r;
+		double dDistY = ys * dDist/r;
 		
 		double deltaX = dRadX + dTanX + dAffX + dDistX;
 		double deltaY = dRadY + dTanY + dAffY + dDistY;
@@ -407,8 +407,8 @@ class PartialDerivativeFactory {
 		double dAffY = 0;
 
 		double dDist = 1.0/N * (D1*r*r*r + D2*r*r*r*r*r + D3*r*r*r*r*r*r*r - (D1*r0*r0 + D2*r0*r0*r0*r0 + D3*r0*r0*r0*r0*r0*r0)*r);
-		double dDistX = xs*dDist/r;
-		double dDistY = ys*dDist/r;
+		double dDistX = xs * dDist/r;
+		double dDistY = ys * dDist/r;
 		
 		double deltaX = dRadX + dTanX + dAffX + dDistX;
 		double deltaY = dRadY + dTanY + dAffY + dDistY;
@@ -430,7 +430,7 @@ class PartialDerivativeFactory {
 			P.set(1, 1, sigma2apriori/varianceY);
 		}
 		else {
-			double invDet = sigma2apriori / ((corrCoefXY + 1.0) * varianceX * varianceY);
+			double invDet = sigma2apriori / ((1.0 - corrCoefXY*corrCoefXY) * varianceX * varianceY);
 			P = new UpperSymmPackMatrix(numberOfRows);
 			P.set(0, 0,  invDet * varianceY);
 			P.set(1, 1,  invDet * varianceX);
@@ -607,7 +607,6 @@ class PartialDerivativeFactory {
 			for (int columnATIdx = 0; columnATIdx < columns.size(); columnATIdx++) {
 				int colAT = columns.get(columnATIdx);
 				double aT = A.get(row, colAT);
-
 				if (corrCoefXY == 0)
 					neq.add(colAT, aT * P.get(row, row) * w.get(row));
 				else

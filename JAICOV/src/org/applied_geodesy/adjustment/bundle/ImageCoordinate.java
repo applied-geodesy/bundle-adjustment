@@ -41,7 +41,7 @@ public class ImageCoordinate implements Referenceable<Image>, ObservationParamet
 	
 	ImageCoordinate(ObjectCoordinate objectCoordinate, Image image, double xp, double yp, double sigmax, double sigmay, double corrCoef) {
 		if (Math.abs(corrCoef) > 1)
-			throw new IllegalArgumentException("Error, correlation coefficient rho must be in the range [-1 1]: " + corrCoef);
+			throw new IllegalArgumentException("Error, correlation coefficient rho must be in the open interval (-1 1): " + corrCoef);
 		
 		this.objectCoordinate = objectCoordinate;
 		this.image = image;
