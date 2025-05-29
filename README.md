@@ -39,6 +39,7 @@ point cloud. For such specific applications, this tiny bundle adjustment library
   + Tangential distortion `B1`, `B2`
   + Affinity and shear `C1`, `C2`
   + Distance-dependent distortion `D1`, `D2`, `D3`
+- Consideration of correlation between planar coordinate components of observed image point
 - Fully populated dispersion matrix of parameters to be estimated
 - Direct export of adjustment results to scientific software package [Matlab](https://matlab.mathworks.com)
 
