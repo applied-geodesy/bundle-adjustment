@@ -35,11 +35,48 @@ import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 
 import no.uib.cipr.matrix.DenseMatrix;
 import no.uib.cipr.matrix.DenseVector;
+import no.uib.cipr.matrix.Matrix;
 import no.uib.cipr.matrix.UpperSymmBandMatrix;
 import no.uib.cipr.matrix.UpperSymmPackMatrix;
 
 class PartialDerivativeFactory {
 	private PartialDerivativeFactory() {}
+	
+//	static double getWeightedSumOfSquaredResiduals(double sigma2apriori, ObservationParameterGroup<?> observations) {
+//		double omega = 0.0;
+//		if (observations instanceof ImageCoordinate) 
+//			omega = getWeightedSumOfSquaredResiduals(sigma2apriori, (ImageCoordinate)observations);
+//		else if (observations instanceof ScaleBar)
+//			omega = getWeightedSumOfSquaredResiduals(sigma2apriori, (ScaleBar)observations);
+//		return omega;
+//	}
+//	
+//	private static double getWeightedSumOfSquaredResiduals(double sigma2apriori, ScaleBar scaleBar) {
+//		Map<ParameterType, Double> residuals = PartialDerivativeFactory.getMisclosures(scaleBar);
+//		double residuum = residuals.get(ParameterType.SCALE_BAR_LENGTH);
+//		return residuum * residuum * sigma2apriori / scaleBar.getLength().getVariance();
+//	}
+//	
+//	private static double getWeightedSumOfSquaredResiduals(double sigma2apriori, ImageCoordinate imageCoordinate) {
+//		Map<ParameterType, Double> residuals = PartialDerivativeFactory.getMisclosures(imageCoordinate);
+//		double residuumX = residuals.get(ParameterType.IMAGE_COORDINATE_X);
+//		double residuumY = residuals.get(ParameterType.IMAGE_COORDINATE_Y);
+//
+//		double varianceX  = imageCoordinate.getX().getVariance();
+//		double varianceY  = imageCoordinate.getY().getVariance();
+//		double corrCoefXY = imageCoordinate.getCorrelationCoefficient();
+//
+//		if (corrCoefXY == 0)
+//			return residuumX * residuumX * sigma2apriori/varianceX + residuumY * residuumY * sigma2apriori/varianceY;
+//		else {
+//			double invDet = sigma2apriori / ((1.0 - corrCoefXY*corrCoefXY) * varianceX * varianceY);
+//			double qxx =  invDet * varianceY;
+//			double qyy =  invDet * varianceX;
+//			double qxy = -invDet * corrCoefXY * Math.sqrt(varianceX * varianceY);
+//			
+//			return residuumX * (qxx * residuumX + qxy * residuumY) + residuumY * (qxy * residuumX + qyy * residuumY);
+//		}
+//	}
 
 	static Map<ParameterType, Double> getMisclosures(ObservationParameterGroup<?> observations) {
 		Map<ParameterType, Double> values = Collections.emptyMap();
@@ -53,7 +90,7 @@ class PartialDerivativeFactory {
 		for (ObservationParameter<?> observation : observations) {
 			ParameterType parameterType = observation.getParameterType();
 			double value = values.get(parameterType);
-			// estimate residuals (== observed - calculated)
+			// estimate residuum (== observed - calculated)
 			misclosures.put(parameterType, observation.getValue() - value);
 		}
 		
@@ -170,8 +207,8 @@ class PartialDerivativeFactory {
 		double dAffY = 0;
 
 		double dDist = 1.0/N * (D1*r*r*r + D2*r*r*r*r*r + D3*r*r*r*r*r*r*r - (D1*r0*r0 + D2*r0*r0*r0*r0 + D3*r0*r0*r0*r0*r0*r0)*r);
-		double dDistX = xs*dDist/r;
-		double dDistY = ys*dDist/r;
+		double dDistX = xs * dDist/r;
+		double dDistY = ys * dDist/r;
 		
 		double deltaX = dRadX + dTanX + dAffX + dDistX;
 		double deltaY = dRadY + dTanY + dAffY + dDistY;
@@ -264,7 +301,7 @@ class PartialDerivativeFactory {
 		}
 
 		Collections.sort(columns);
-		for (int row = 0; row < A.numRows(); row++) {
+		for (int row = 0; row < numberOfRows; row++) {
 			for (int columnATIdx = 0; columnATIdx < columns.size(); columnATIdx++) {
 				int colAT = columns.get(columnATIdx);
 				double aT = A.get(row, colAT);
@@ -370,14 +407,15 @@ class PartialDerivativeFactory {
 		double dAffY = 0;
 
 		double dDist = 1.0/N * (D1*r*r*r + D2*r*r*r*r*r + D3*r*r*r*r*r*r*r - (D1*r0*r0 + D2*r0*r0*r0*r0 + D3*r0*r0*r0*r0*r0*r0)*r);
-		double dDistX = xs*dDist/r;
-		double dDistY = ys*dDist/r;
+		double dDistX = xs * dDist/r;
+		double dDistY = ys * dDist/r;
 		
 		double deltaX = dRadX + dTanX + dAffX + dDistX;
 		double deltaY = dRadY + dTanY + dAffY + dDistY;
 
-		double varianceX = imageCoordinate.getX().getVariance();
-		double varianceY = imageCoordinate.getY().getVariance();
+		double varianceX  = imageCoordinate.getX().getVariance();
+		double varianceY  = imageCoordinate.getY().getVariance();
+		double corrCoefXY = imageCoordinate.getCorrelationCoefficient();
 		
 		int numberOfRows = imageCoordinate.getNumberOfParameters();
 
@@ -385,9 +423,19 @@ class PartialDerivativeFactory {
 		DenseVector w = new DenseVector(numberOfRows);
 		DenseMatrix A = new DenseMatrix(numberOfRows, neq.size());
 
-		UpperSymmBandMatrix P = new UpperSymmBandMatrix(numberOfRows, 0);
-		P.set(0, 0, sigma2apriori/varianceX);
-		P.set(1, 1, sigma2apriori/varianceY);
+		Matrix P = null;
+		if (corrCoefXY == 0) {
+			P = new UpperSymmBandMatrix(numberOfRows, 0);
+			P.set(0, 0, sigma2apriori/varianceX);
+			P.set(1, 1, sigma2apriori/varianceY);
+		}
+		else {
+			double invDet = sigma2apriori / ((1.0 - corrCoefXY*corrCoefXY) * varianceX * varianceY);
+			P = new UpperSymmPackMatrix(numberOfRows);
+			P.set(0, 0,  invDet * varianceY);
+			P.set(1, 1,  invDet * varianceX);
+			P.set(0, 1, -invDet * corrCoefXY * Math.sqrt(varianceX * varianceY));
+		}
 
 		w.set(0, imageCoordinate.getX().getValue() - (x0 + xs + deltaX));
 		w.set(1, imageCoordinate.getY().getValue() - (y0 + ys + deltaY));
@@ -553,19 +601,26 @@ class PartialDerivativeFactory {
 			A.set(0, column, ys+C1*ys-B2*(c*c)*(kxN*kxN)*2.0+B2*(c*c)*(kyN*kyN)*2.0+C2*c*kxN+(ys*(dDist+dRad))/r+B1*(c*c)*kxN*kyN*4.0);
 			A.set(1, column, c*(kxN-B1*c*(kxN*kxN)*2.0+B1*c*(kyN*kyN)*2.0-B2*c*kxN*kyN*4.0)+(c*kxN*(dDist+dRad))/r);
 		}
-
+		
 		Collections.sort(columns);
-		for (int row = 0; row < A.numRows(); row++) {
+		for (int row = 0; row < numberOfRows; row++) {
 			for (int columnATIdx = 0; columnATIdx < columns.size(); columnATIdx++) {
 				int colAT = columns.get(columnATIdx);
 				double aT = A.get(row, colAT);
-				neq.add(colAT, aT * P.get(row, row) * w.get(row));
+				if (corrCoefXY == 0)
+					neq.add(colAT, aT * P.get(row, row) * w.get(row));
+				else
+					for (int colP = 0; colP < numberOfRows; colP++)
+						neq.add(colAT, aT * P.get(row, colP) * w.get(colP));
 
 				if (NEQ != null) {
 					for (int columnAIdx = columnATIdx; columnAIdx < columns.size(); columnAIdx++) {
-						int colA = columns.get(columnAIdx);	
-						double a = A.get(row, colA);
-						NEQ.add(colAT, colA, aT * P.get(row, row) * a);
+						int colA = columns.get(columnAIdx);
+						if (corrCoefXY == 0)
+							NEQ.add(colAT, colA, aT * P.get(row, row) * A.get(row, colA));
+						else
+							for (int colP = 0; colP < numberOfRows; colP++)
+								NEQ.add(colAT, colA, aT * P.get(row, colP) * A.get(colP, colA));
 					}
 				}
 			}	
