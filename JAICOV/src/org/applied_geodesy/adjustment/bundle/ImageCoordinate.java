@@ -35,12 +35,8 @@ public class ImageCoordinate implements Referenceable<Image>, ObservationParamet
 	private ObservationParameter<ImageCoordinate> x = new ObservationParameter<ImageCoordinate>(ParameterType.IMAGE_COORDINATE_X, this);
 	private ObservationParameter<ImageCoordinate> y = new ObservationParameter<ImageCoordinate>(ParameterType.IMAGE_COORDINATE_Y, this);
 	
-	ImageCoordinate(ObjectCoordinate objectCoordinate, Image image, double xp, double yp, double sigmax, double sigmay) {
-		this(objectCoordinate, image, xp, yp, sigmax, sigmay, 0.0);
-	}
-	
 	ImageCoordinate(ObjectCoordinate objectCoordinate, Image image, double xp, double yp, double sigmax, double sigmay, double corrCoef) {
-		if (Math.abs(corrCoef) > 1)
+		if (Math.abs(corrCoef) >= 1)
 			throw new IllegalArgumentException("Error, correlation coefficient rho must be in the open interval (-1 1): " + corrCoef);
 		
 		this.objectCoordinate = objectCoordinate;

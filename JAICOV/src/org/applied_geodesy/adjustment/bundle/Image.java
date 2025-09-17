@@ -47,15 +47,19 @@ public class Image implements Referenceable<Camera>, Iterable<ImageCoordinate> {
 		return this.id;
 	}
 	
-	public ImageCoordinate add(ObjectCoordinate objectCoordinate, double xp, double yp, double sigmax, double sigmay) {
+	public ImageCoordinate add(ObjectCoordinate objectCoordinate, double xp, double yp, double sigmax, double sigmay, double corrCoe) {
 		if (this.imageCoordinates.containsKey(objectCoordinate))
 			return this.imageCoordinates.get(objectCoordinate);
 		
-		ImageCoordinate imgCoord = new ImageCoordinate(objectCoordinate, this, xp, yp, sigmax, sigmay);
+		ImageCoordinate imgCoord = new ImageCoordinate(objectCoordinate, this, xp, yp, sigmax, sigmay, corrCoe);
 		this.imageCoordinates.put(objectCoordinate, imgCoord);
 		
 		objectCoordinate.add(this);
 		return imgCoord;
+	}
+	
+	public ImageCoordinate add(ObjectCoordinate objectCoordinate, double xp, double yp, double sigmax, double sigmay) {
+		return this.add(objectCoordinate, xp, yp, sigmax, sigmay, 0.0);
 	}
 	
 	public ImageCoordinate get(ObjectCoordinate objectCoordinate) {
