@@ -464,7 +464,7 @@ public class BundleAdjustment {
 		}
 
 		if (count < 3)
-			throw new IllegalArgumentException(this.getClass() + " Error, not enought object points to realise the frame datum!");
+			throw new IllegalArgumentException(this.getClass() + " Error, not enough object points to realise the frame datum!");
 
 		x0 = x0 / (double)count;
 		y0 = y0 / (double)count;
