@@ -95,10 +95,11 @@ public class ImageCoordinateFlatFileReader extends SourceFileReader<Camera> {
 			double yp = Double.parseDouble(columns[4].trim());
 			double sx = Double.parseDouble(columns[5].trim());
 			double sy = Double.parseDouble(columns[6].trim());
+			double rho = columns.length > 6 ? Double.parseDouble(columns[7].trim()) : 0.0;
 			
 			Image image = this.camera.add(imgid);				
 			if (this.objectCoordinates.containsKey(name)) {
-				image.add(this.objectCoordinates.get(name), xp, yp, sx, sy);
+				image.add(this.objectCoordinates.get(name), xp, yp, sx, sy, rho);
 			}
 		}
 		catch (Exception err) {
