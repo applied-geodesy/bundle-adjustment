@@ -95,7 +95,7 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 		phcReader.readAndImport();
 		
 		// Specify the points, which are used to define the datum of the frame
-		// !!!this step is not mandatory!!!
+		// !!! this step is not mandatory, just for demonstrations !!!
 		for (Image image : camera) {
 			// Call the images taken from this camera object
 			// and extract the image coordinates
@@ -135,7 +135,7 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 			if (D != null)
 				D.scale(adjustment.getVarianceFactorAposteriori());
 			
-			String template = "%10s\t%+16.5f\t%+16.5f\t%+16.5f\t%+8.5f\t%+8.5f\t%+8.5f\t%1s";
+			String template = "%10s\t%+16.5f\t%+16.5f\t%+16.5f\t%+12.5f\t%+12.5f\t%+12.5f\t%1s";
 
 			// print coordinates of object points and related uncertainties
 			Collection<ObjectCoordinate> objectCoordinates = adjustment.getObjectCoordinates();
