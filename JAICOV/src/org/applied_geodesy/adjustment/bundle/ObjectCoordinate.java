@@ -28,7 +28,7 @@ import java.util.Set;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
-public class ObjectCoordinate implements Iterable<Image> {
+public class ObjectCoordinate implements Iterable<ObservedObjectCoordinate> {
 	private final String name;
 	private boolean datum = Boolean.TRUE;
 	
@@ -37,6 +37,7 @@ public class ObjectCoordinate implements Iterable<Image> {
 	private UnknownParameter<ObjectCoordinate> z = new UnknownParameter<ObjectCoordinate>(ParameterType.OBJECT_COORDINATE_Z, this);
 	
 	private Set<Image> images = new LinkedHashSet<Image>();
+	private Set<ObservedObjectCoordinate> observedCoordinates = new LinkedHashSet<ObservedObjectCoordinate>(0);
 	
 	public ObjectCoordinate(String name, double x, double y, double z) {
 		this.name = name;
@@ -87,11 +88,34 @@ public class ObjectCoordinate implements Iterable<Image> {
 	public void setDatum(boolean datum) {
 		this.datum = datum;
 	}
-
-	@Override
-	public Iterator<Image> iterator() {
-		return this.images.iterator();
+	
+	public ObservedObjectCoordinate add(double sigmax, double sigmay, double sigmaz) {
+		return add(sigmax, sigmay, sigmaz, 0, 0, 0);
 	}
+	
+	public ObservedObjectCoordinate add(double sigmax, double sigmay, double sigmaz, double corrCoefXY, double corrCoefXZ, double corrCoefYZ) {
+		return add(this.x.getValue(), this.y.getValue(), this.z.getValue(), sigmax, sigmay, sigmaz, corrCoefXY, corrCoefXZ, corrCoefYZ);
+	}
+	
+	public ObservedObjectCoordinate add(double x, double y, double z, double sigmax, double sigmay, double sigmaz, double corrCoefXY, double corrCoefXZ, double corrCoefYZ) {
+		ObservedObjectCoordinate observedCoordinate = new ObservedObjectCoordinate(this, x, y, z, sigmax, sigmay, sigmaz, corrCoefXY, corrCoefXZ, corrCoefYZ);
+		this.observedCoordinates.add(observedCoordinate);
+		return observedCoordinate;
+	}
+	
+	public Set<Image> getImagesContainingCoordinates() {
+		return this.images;
+	}
+	
+	@Override
+	public Iterator<ObservedObjectCoordinate> iterator() {
+		return this.observedCoordinates.iterator();
+	}
+	
+//	@Override
+//	public Iterator<Image> iterator() {
+//		return this.images.iterator();
+//	}
 
 	@Override
 	public String toString() {

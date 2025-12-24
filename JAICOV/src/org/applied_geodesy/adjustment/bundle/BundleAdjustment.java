@@ -99,7 +99,7 @@ public class BundleAdjustment {
 	private Set<UnknownParameter<?>> unknownParameters = new LinkedHashSet<UnknownParameter<?>>();
 	private Set<ObjectCoordinate> objectCoordinates = new LinkedHashSet<ObjectCoordinate>();
 	private Set<ScaleBar> scaleBars = new LinkedHashSet<ScaleBar>();
-
+	
 	public BundleAdjustment() {}
 	
 	private void centroidCoordinates(boolean invert) throws UnsupportedOperationException {
@@ -164,6 +164,14 @@ public class BundleAdjustment {
 				break;
 			default:
 				break;
+			}
+		}
+		
+		for (ObjectCoordinate coordinate : this.objectCoordinates) {
+			for (ObservedObjectCoordinate observedCoordinate : coordinate) {
+				observedCoordinate.getX().setValue(observedCoordinate.getX().getValue() + x0);
+				observedCoordinate.getY().setValue(observedCoordinate.getY().getValue() + y0);
+				observedCoordinate.getZ().setValue(observedCoordinate.getZ().getValue() + z0);
 			}
 		}
 	}
@@ -445,6 +453,10 @@ public class BundleAdjustment {
 	}
 	
 	private void addDatumConditionRows(UpperSymmPackMatrix N) {
+		int defectSize = this.rankDefect.getDefect();
+		if (defectSize == 0)
+			return;
+		
 		// center of mass
 		double x0 = 0, y0 = 0, z0 = 0;
 		int count = 0;
@@ -469,10 +481,7 @@ public class BundleAdjustment {
 		x0 = x0 / (double)count;
 		y0 = y0 / (double)count;
 		z0 = z0 / (double)count;
-
-		int defectSize = this.rankDefect.getDefect();
-		int row = 0;
-
+		
 		// Position in condition matrix
 		int defectRow = 0;
 		int tx   = this.rankDefect.estimateTranslationX() ? defectRow++ : -1;
@@ -485,7 +494,8 @@ public class BundleAdjustment {
 
 		// Sum of squared row
 		double normColumn[] = new double[defectSize];
-
+		// Row in normal equation matrix
+		int row = 0;
 		for (ObjectCoordinate objectCoordinate : this.objectCoordinates) {
 			int columnX = objectCoordinate.getX().getColumn();
 			int columnY = objectCoordinate.getY().getColumn();
@@ -611,6 +621,8 @@ public class BundleAdjustment {
 	}
 	
 	private void prepareUnknownParameters() {
+		Set<ObjectCoordinate> observedCoordinates = new LinkedHashSet<ObjectCoordinate>();
+		
 		for (Camera camera : this.cameras) {		
 			for (Image image : camera) {
 				for (ImageCoordinate imageCoordinate : image) {
@@ -627,6 +639,10 @@ public class BundleAdjustment {
 
 					// add pixel coordinates as observations
 					this.addObservationGroup(imageCoordinate);
+					
+					// add observed coordinates to list to avoid iterating over camera's images
+					if (objectCoordinate.iterator().hasNext())
+						observedCoordinates.add(objectCoordinate);
 				}
 			}
 		}
@@ -655,16 +671,42 @@ public class BundleAdjustment {
 
 			ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
 			ObjectCoordinate objectCoordinateB = scaleBar.getObjectCoordinateB();
+			this.objectCoordinates.add(objectCoordinateA);
+			this.objectCoordinates.add(objectCoordinateB);
 
+			// add object coordinates A as unknowns
 			this.addUnknownParameter(objectCoordinateA.getX());
 			this.addUnknownParameter(objectCoordinateA.getY());
 			this.addUnknownParameter(objectCoordinateA.getZ());
 
+			// add object coordinates B as unknowns
 			this.addUnknownParameter(objectCoordinateB.getX());
 			this.addUnknownParameter(objectCoordinateB.getY());
 			this.addUnknownParameter(objectCoordinateB.getZ());
 
+			// add scale-bar length as observation
 			this.addObservationGroup(scaleBar);
+		}
+		
+		for (ObjectCoordinate coordinate : observedCoordinates) {
+			for (ObservedObjectCoordinate observedCoordinate : coordinate) {
+				observedCoordinate.getX().setRow( this.numberOfObservations++ );
+				observedCoordinate.getY().setRow( this.numberOfObservations++ );
+				observedCoordinate.getZ().setRow( this.numberOfObservations++ );
+			
+				this.objectCoordinates.add(coordinate);
+			
+				// add object coordinates as unknowns
+				this.addUnknownParameter(coordinate.getX());
+				this.addUnknownParameter(coordinate.getY());
+				this.addUnknownParameter(coordinate.getZ());
+			
+				// add observed coordinates as observations
+				this.addObservationGroup(observedCoordinate);
+
+				// coordinates are known by observations
+				coordinate.setDatum(Boolean.FALSE);
+			}
 		}
 		
 		this.detectRankDefect();
@@ -732,6 +774,7 @@ public class BundleAdjustment {
 
 	private void detectRankDefect() {
 		boolean hasScaleBars = !this.scaleBars.isEmpty();
+		
 		this.rankDefect.reset();
 		
 		this.rankDefect.setTranslationX(DefectType.FREE);
@@ -744,85 +787,91 @@ public class BundleAdjustment {
 		
 		this.rankDefect.setScale(hasScaleBars ? DefectType.FIXED : DefectType.FREE);
 		
-		int countFixedX = 0;
-		int countFixedY = 0;
-		int countFixedZ = 0;
+		int countKnownX = 0;
+		int countKnownY = 0;
+		int countKnownZ = 0;
+		
+		if (!this.rankDefect.estimateTranslationX() && !this.rankDefect.estimateTranslationY() && !this.rankDefect.estimateTranslationZ() &&
+				!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ() &&
+				!this.rankDefect.estimateScale())
+				return;
 		
 		for (ObjectCoordinate coordinate : this.objectCoordinates) {
-			countFixedX += coordinate.getX().getColumn() == Integer.MAX_VALUE ? 1 : 0;
-			countFixedY += coordinate.getY().getColumn() == Integer.MAX_VALUE ? 1 : 0;
-			countFixedZ += coordinate.getZ().getColumn() == Integer.MAX_VALUE ? 1 : 0;
+			// count known (fixed or observed) coordinate components
+			boolean isDirectlyObserved = coordinate.iterator().hasNext();
+			countKnownX += isDirectlyObserved || coordinate.getX().getColumn() == Integer.MAX_VALUE ? 1 : 0;
+			countKnownY += isDirectlyObserved || coordinate.getY().getColumn() == Integer.MAX_VALUE ? 1 : 0;
+			countKnownZ += isDirectlyObserved || coordinate.getZ().getColumn() == Integer.MAX_VALUE ? 1 : 0;
 			
-			if (this.rankDefect.estimateTranslationX() && countFixedX > 0)
+			if (this.rankDefect.estimateTranslationX() && countKnownX > 0)
 				this.rankDefect.setTranslationX(DefectType.FIXED);
-			if (this.rankDefect.estimateTranslationY() && countFixedY > 0)
+			if (this.rankDefect.estimateTranslationY() && countKnownY > 0)
 				this.rankDefect.setTranslationY(DefectType.FIXED);
-			if (this.rankDefect.estimateTranslationZ() && countFixedZ > 0)
+			if (this.rankDefect.estimateTranslationZ() && countKnownZ > 0)
 				this.rankDefect.setTranslationZ(DefectType.FIXED);
 			
-			if (!hasScaleBars && (countFixedX >= 2 || countFixedY >= 2 || countFixedZ >= 2))
+			if (!hasScaleBars && (countKnownX >= 2 || countKnownY >= 2 || countKnownZ >= 2))
 				this.rankDefect.setScale(DefectType.FIXED);
 			
-			//if (countFixedX >= 3 && countFixedY >= 3 && countFixedZ >= 3)
-			if (countFixedX > 0 && countFixedY > 0 && countFixedZ > 0 && 
-					(hasScaleBars && countFixedX + countFixedY + countFixedZ >= 6 || !hasScaleBars && countFixedX + countFixedY + countFixedZ >= 7)) {
+			if (countKnownX > 0 && countKnownY > 0 && countKnownZ > 0 && 
+					(hasScaleBars && countKnownX + countKnownY + countKnownZ >= 6 || !hasScaleBars && countKnownX + countKnownY + countKnownZ >= 7)) {
 				this.rankDefect.setRotationX(DefectType.FIXED);
 				this.rankDefect.setRotationY(DefectType.FIXED);
 				this.rankDefect.setRotationZ(DefectType.FIXED);
-				
-				break;
 			}
+			
+			if (!this.rankDefect.estimateTranslationX() && !this.rankDefect.estimateTranslationY() && !this.rankDefect.estimateTranslationZ() &&
+					!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ() &&
+					!this.rankDefect.estimateScale())
+					break;
 		}
 		
-		if (this.rankDefect.estimateTranslationX() || this.rankDefect.estimateTranslationY() || this.rankDefect.estimateTranslationZ() ||
-				this.rankDefect.estimateRotationX() || this.rankDefect.estimateRotationY() || this.rankDefect.estimateRotationZ() ||
-				this.rankDefect.estimateScale()) {
+		if (!this.rankDefect.estimateTranslationX() && !this.rankDefect.estimateTranslationY() && !this.rankDefect.estimateTranslationZ() &&
+				!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ() &&
+				!this.rankDefect.estimateScale())
+				return;
+		
+		for (Camera camera : this.cameras) {
+			for (Image image : camera) {
+				// add parameters of exterior orientation
+				ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
+				if (this.rankDefect.estimateRotationX() && exteriorOrientation.get(ParameterType.CAMERA_OMEGA).getColumn() == Integer.MAX_VALUE)
+					this.rankDefect.setRotationX(DefectType.FIXED);
+				if (this.rankDefect.estimateRotationY() && exteriorOrientation.get(ParameterType.CAMERA_PHI).getColumn() == Integer.MAX_VALUE)
+					this.rankDefect.setRotationY(DefectType.FIXED);
+				if (this.rankDefect.estimateRotationZ() && exteriorOrientation.get(ParameterType.CAMERA_KAPPA).getColumn() == Integer.MAX_VALUE)
+					this.rankDefect.setRotationZ(DefectType.FIXED);
 
-			for (Camera camera : this.cameras) {
-				for (Image image : camera) {
-					// add parameters of exterior orientation
-					ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
-					if (this.rankDefect.estimateRotationX() && exteriorOrientation.get(ParameterType.CAMERA_OMEGA).getColumn() == Integer.MAX_VALUE)
-						this.rankDefect.setRotationX(DefectType.FIXED);
-					if (this.rankDefect.estimateRotationY() && exteriorOrientation.get(ParameterType.CAMERA_PHI).getColumn() == Integer.MAX_VALUE)
-						this.rankDefect.setRotationY(DefectType.FIXED);
-					if (this.rankDefect.estimateRotationZ() && exteriorOrientation.get(ParameterType.CAMERA_KAPPA).getColumn() == Integer.MAX_VALUE)
-						this.rankDefect.setRotationZ(DefectType.FIXED);
+				countKnownX += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).getColumn() == Integer.MAX_VALUE ? 1 : 0;
+				countKnownY += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).getColumn() == Integer.MAX_VALUE ? 1 : 0;
+				countKnownZ += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).getColumn() == Integer.MAX_VALUE ? 1 : 0;
 
-					countFixedX += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).getColumn() == Integer.MAX_VALUE ? 1 : 0;
-					countFixedY += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).getColumn() == Integer.MAX_VALUE ? 1 : 0;
-					countFixedZ += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).getColumn() == Integer.MAX_VALUE ? 1 : 0;
+				if (this.rankDefect.estimateTranslationX() && countKnownX > 0)
+					this.rankDefect.setTranslationX(DefectType.FIXED);
+				if (this.rankDefect.estimateTranslationY() && countKnownY > 0)
+					this.rankDefect.setTranslationY(DefectType.FIXED);
+				if (this.rankDefect.estimateTranslationZ() && countKnownZ > 0)
+					this.rankDefect.setTranslationZ(DefectType.FIXED);
 
-					if (this.rankDefect.estimateTranslationX() && countFixedX > 0)
-						this.rankDefect.setTranslationX(DefectType.FIXED);
-					if (this.rankDefect.estimateTranslationY() && countFixedY > 0)
-						this.rankDefect.setTranslationY(DefectType.FIXED);
-					if (this.rankDefect.estimateTranslationZ() && countFixedZ > 0)
-						this.rankDefect.setTranslationZ(DefectType.FIXED);
-					
-					if (!hasScaleBars && (countFixedX >= 2 || countFixedY >= 2 || countFixedZ >= 2))
-						this.rankDefect.setScale(DefectType.FIXED);
-					
-					if (!this.rankDefect.estimateTranslationX() && !this.rankDefect.estimateTranslationY() && !this.rankDefect.estimateTranslationZ() &&
-						!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ() &&
-						!this.rankDefect.estimateScale())
-						break;
+				if (!hasScaleBars && (countKnownX >= 2 || countKnownY >= 2 || countKnownZ >= 2))
+					this.rankDefect.setScale(DefectType.FIXED);
 
-					//if (countFixedX >= 3 && countFixedY >= 3 && countFixedZ >= 3)
-					if (countFixedX > 0 && countFixedY > 0 && countFixedZ > 0 && 
-							(hasScaleBars && countFixedX + countFixedY + countFixedZ >= 6 || !hasScaleBars && countFixedX + countFixedY + countFixedZ >= 7)) {
-						this.rankDefect.setRotationX(DefectType.FIXED);
-						this.rankDefect.setRotationY(DefectType.FIXED);
-						this.rankDefect.setRotationZ(DefectType.FIXED);
-						
-						break;
-					}
+				if (countKnownX > 0 && countKnownY > 0 && countKnownZ > 0 && 
+						(hasScaleBars && countKnownX + countKnownY + countKnownZ >= 6 || !hasScaleBars && countKnownX + countKnownY + countKnownZ >= 7)) {
+					this.rankDefect.setRotationX(DefectType.FIXED);
+					this.rankDefect.setRotationY(DefectType.FIXED);
+					this.rankDefect.setRotationZ(DefectType.FIXED);
 				}
+				
 				if (!this.rankDefect.estimateTranslationX() && !this.rankDefect.estimateTranslationY() && !this.rankDefect.estimateTranslationZ() &&
 						!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ() &&
 						!this.rankDefect.estimateScale())
-						break;
+					break;
 			}
+			if (!this.rankDefect.estimateTranslationX() && !this.rankDefect.estimateTranslationY() && !this.rankDefect.estimateTranslationZ() &&
+					!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ() &&
+					!this.rankDefect.estimateScale())
+				break;
 		}
 	}
 	
