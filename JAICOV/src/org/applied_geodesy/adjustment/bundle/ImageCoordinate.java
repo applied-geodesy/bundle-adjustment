@@ -30,14 +30,14 @@ import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 public class ImageCoordinate implements Referenceable<Image>, ObservationParameterGroup<ImageCoordinate> {
 	private final ObjectCoordinate objectCoordinate;
 	private final Image image;
-	private final double corrCoef;
+	private final double corrCoefXY;
 	
 	private ObservationParameter<ImageCoordinate> x = new ObservationParameter<ImageCoordinate>(ParameterType.IMAGE_COORDINATE_X, this);
 	private ObservationParameter<ImageCoordinate> y = new ObservationParameter<ImageCoordinate>(ParameterType.IMAGE_COORDINATE_Y, this);
 	
-	ImageCoordinate(ObjectCoordinate objectCoordinate, Image image, double xp, double yp, double sigmax, double sigmay, double corrCoef) {
-		if (Math.abs(corrCoef) >= 1)
-			throw new IllegalArgumentException("Error, correlation coefficient rho must be in the open interval (-1 1): " + corrCoef);
+	ImageCoordinate(ObjectCoordinate objectCoordinate, Image image, double xp, double yp, double sigmax, double sigmay, double corrCoefXY) {
+		if (Math.abs(corrCoefXY) >= 1)
+			throw new IllegalArgumentException("Error, correlation coefficient rho(x,y) must be in the open interval (-1 1): " + corrCoefXY);
 		
 		this.objectCoordinate = objectCoordinate;
 		this.image = image;
@@ -48,7 +48,7 @@ public class ImageCoordinate implements Referenceable<Image>, ObservationParamet
 		this.x.setVariance(sigmax * sigmax);
 		this.y.setVariance(sigmay * sigmay);
 		
-		this.corrCoef = corrCoef;
+		this.corrCoefXY = corrCoefXY;
 	}
 	
 	public ObjectCoordinate getObjectCoordinate() {
@@ -63,8 +63,8 @@ public class ImageCoordinate implements Referenceable<Image>, ObservationParamet
 		return this.y;
 	}
 	
-	public double getCorrelationCoefficient() {
-		return this.corrCoef;
+	public double getCorrelationCoefficientXY() {
+		return this.corrCoefXY;
 	}
 
 	@Override

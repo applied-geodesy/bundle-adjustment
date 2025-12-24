@@ -47,11 +47,11 @@ public class Image implements Referenceable<Camera>, Iterable<ImageCoordinate> {
 		return this.id;
 	}
 	
-	public ImageCoordinate add(ObjectCoordinate objectCoordinate, double xp, double yp, double sigmax, double sigmay, double corrCoe) {
+	public ImageCoordinate add(ObjectCoordinate objectCoordinate, double xp, double yp, double sigmax, double sigmay, double corrCoefXY) {
 		if (this.imageCoordinates.containsKey(objectCoordinate))
 			return this.imageCoordinates.get(objectCoordinate);
 		
-		ImageCoordinate imgCoord = new ImageCoordinate(objectCoordinate, this, xp, yp, sigmax, sigmay, corrCoe);
+		ImageCoordinate imgCoord = new ImageCoordinate(objectCoordinate, this, xp, yp, sigmax, sigmay, corrCoefXY);
 		this.imageCoordinates.put(objectCoordinate, imgCoord);
 		
 		objectCoordinate.add(this);
