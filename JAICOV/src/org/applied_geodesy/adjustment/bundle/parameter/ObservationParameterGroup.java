@@ -21,4 +21,4 @@
 
 package org.applied_geodesy.adjustment.bundle.parameter;
 
-public interface ObservationParameterGroup<T> extends ParameterGroup<ObservationParameter<T>> { }
+public interface ObservationParameterGroup<T> extends ParameterGroup<ObservationParameter<? extends T>> { }

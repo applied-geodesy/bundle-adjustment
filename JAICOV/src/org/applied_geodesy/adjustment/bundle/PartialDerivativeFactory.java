@@ -23,15 +23,15 @@ package org.applied_geodesy.adjustment.bundle;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.parameter.DirectlyObservedParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
+import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
 import no.uib.cipr.matrix.DenseMatrix;
 import no.uib.cipr.matrix.DenseVector;
@@ -42,173 +42,15 @@ import no.uib.cipr.matrix.UpperSymmPackMatrix;
 class PartialDerivativeFactory {
 	private PartialDerivativeFactory() {}
 	
-	static Map<ParameterType, Double> getMisclosures(ObservationParameterGroup<?> observations) {
-		Map<ParameterType, Double> values = Collections.emptyMap();
-		
-		if (observations instanceof ImageCoordinate) 
-			values = getCollinearityEquationValues((ImageCoordinate)observations);			
-		else if (observations instanceof ScaleBar)
-			values = getDistanceValue((ScaleBar)observations);
-		else if (observations instanceof ObservedObjectCoordinate)
-			values = getCoordinateValues((ObservedObjectCoordinate)observations);
-		
-		Map<ParameterType, Double> misclosures = new HashMap<ParameterType, Double>(observations.getNumberOfParameters());
-		for (ObservationParameter<?> observation : observations) {
-			ParameterType parameterType = observation.getParameterType();
-			double value = values.get(parameterType);
-			// estimate residuum (== observed - calculated)
-			misclosures.put(parameterType, observation.getValue() - value);
-		}
-		
-		return misclosures;
-	}
-
-	private static Map<ParameterType, Double> getDistanceValue(ScaleBar scaleBar) {
-		ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
-		ObjectCoordinate objectCoordinateB = scaleBar.getObjectCoordinateB();
-
-		double XA = objectCoordinateA.getX().getValue();
-		double YA = objectCoordinateA.getY().getValue();
-		double ZA = objectCoordinateA.getZ().getValue();
-
-		double XB = objectCoordinateB.getX().getValue();
-		double YB = objectCoordinateB.getY().getValue();
-		double ZB = objectCoordinateB.getZ().getValue();
-
-		double dX = XB - XA;
-		double dY = YB - YA;
-		double dZ = ZB - ZA;
-
-		return Map.ofEntries( 
-				Map.entry(ParameterType.SCALE_BAR_LENGTH, Math.sqrt( dX*dX + dY*dY + dZ*dZ ))
-		);
-	}
-	
-	private static Map<ParameterType, Double> getCoordinateValues(ObservedObjectCoordinate observedObjectCoordinate) {
-		ObjectCoordinate objectCoordinate = observedObjectCoordinate.getObjectCoordinate();
-
-		double X = objectCoordinate.getX().getValue();
-		double Y = objectCoordinate.getY().getValue();
-		double Z = objectCoordinate.getZ().getValue();
-		
-		return Map.ofEntries( 
-				Map.entry(ParameterType.OBJECT_COORDINATE_X, X),
-				Map.entry(ParameterType.OBJECT_COORDINATE_Y, Y),
-				Map.entry(ParameterType.OBJECT_COORDINATE_Z, Z)
-		);
-	}
-	
-
-	private static Map<ParameterType, Double> getCollinearityEquationValues(ImageCoordinate imageCoordinate) {
-		Image image = imageCoordinate.getReference();
-		Camera camera = image.getReference();
-		ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
-
-		double X = objectCoordinate.getX().getValue();
-		double Y = objectCoordinate.getY().getValue();
-		double Z = objectCoordinate.getZ().getValue();
-
-		double r0 = camera.getR0();
-
-		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
-		ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
-
-		double c  = interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE).getValue();
-		double x0 = interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X).getValue();
-		double y0 = interiorOrientation.get(ParameterType.PRINCIPAL_POINT_Y).getValue();
-
-		double A1 = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A1).getValue();
-		double A2 = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).getValue();
-		double A3 = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).getValue();
-
-		double B1 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).getValue();
-		double B2 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).getValue();
-
-		double C1 = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).getValue();
-		double C2 = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).getValue();
-		
-		double D1 = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).getValue();
-		double D2 = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).getValue();
-		double D3 = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).getValue();
-
-		double X0 = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).getValue();
-		double Y0 = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).getValue();
-		double Z0 = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).getValue();
-
-		double omega = exteriorOrientation.get(ParameterType.CAMERA_OMEGA).getValue();
-		double phi   = exteriorOrientation.get(ParameterType.CAMERA_PHI).getValue();
-		double kappa = exteriorOrientation.get(ParameterType.CAMERA_KAPPA).getValue();
-
-		double cosOmega = Math.cos(omega);
-		double sinOmega = Math.sin(omega);
-
-		double cosPhi = Math.cos(phi);
-		double sinPhi = Math.sin(phi);
-
-		double cosKappa = Math.cos(kappa);
-		double sinKappa = Math.sin(kappa);
-
-		// Rotation (Luhmann (2023) Eq. 2.31, p. 62)
-		double r11 =  cosPhi * cosKappa;
-		double r12 = -cosPhi * sinKappa;
-		double r13 =  sinPhi;
-
-		double r21 =  cosOmega * sinKappa + sinOmega * sinPhi * cosKappa;
-		double r22 =  cosOmega * cosKappa - sinOmega * sinPhi * sinKappa;
-		double r23 = -sinOmega * cosPhi;
-
-		double r31 = sinOmega * sinKappa - cosOmega * sinPhi * cosKappa;
-		double r32 = sinOmega * cosKappa + cosOmega * sinPhi * sinKappa;
-		double r33 = cosOmega * cosPhi;
-
-		double dX = X - X0;
-		double dY = Y - Y0;
-		double dZ = Z - Z0;
-
-		double kx = r11*dX + r21*dY + r31*dZ;
-		double ky = r12*dX + r22*dY + r32*dZ;
-		double N  = r13*dX + r23*dY + r33*dZ;
-
-		double kxN = kx/N;
-		double kyN = ky/N;
-
-		double xs = -c*kxN;
-		double ys = -c*kyN;
-
-		double r = Math.hypot(xs, ys);
-		double dRad  = A1*r*r*r + A2*r*r*r*r*r + A3*r*r*r*r*r*r*r - (A1*r0*r0 + A2*r0*r0*r0*r0 + A3*r0*r0*r0*r0*r0*r0)*r;
-
-		double dRadX = xs * dRad/r;
-		double dRadY = ys * dRad/r;
-
-		double dTanX = B1 * (r*r + 2.0*xs*xs) + 2.0 * B2 * xs * ys;
-		double dTanY = B2 * (r*r + 2.0*ys*ys) + 2.0 * B1 * xs * ys;
-
-		double dAffX = C1*xs + C2*ys;
-		double dAffY = 0;
-
-		double dDist = 1.0/N * (D1*r*r*r + D2*r*r*r*r*r + D3*r*r*r*r*r*r*r - (D1*r0*r0 + D2*r0*r0*r0*r0 + D3*r0*r0*r0*r0*r0*r0)*r);
-		double dDistX = xs * dDist/r;
-		double dDistY = ys * dDist/r;
-		
-		double deltaX = dRadX + dTanX + dAffX + dDistX;
-		double deltaY = dRadY + dTanY + dAffY + dDistY;
-		
-		return Map.ofEntries( 
-				Map.entry(ParameterType.IMAGE_COORDINATE_X, x0 + xs + deltaX),
-				Map.entry(ParameterType.IMAGE_COORDINATE_Y, y0 + ys + deltaY) 
-		);
-	}
-	
-	static GaussMarkovEquations getPartialDerivative(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ObservationParameterGroup<?> observations) {
+	static GaussMarkovEquations getPartialDerivative(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ObservationParameterGroup<?> observations) throws UnsupportedOperationException {
 		if (observations instanceof ImageCoordinate) 
 			return getPartialDerivativeImageCoordinate(sigma2apriori, NEQ, neq, (ImageCoordinate)observations);
 		else if (observations instanceof ScaleBar)
 			return getPartialDerivativeScaleBar(sigma2apriori, NEQ, neq, (ScaleBar)observations);
-		else if (observations instanceof ObservedObjectCoordinate)
-			return getPartialDerivativeObservedCoordinate(sigma2apriori, NEQ, neq, (ObservedObjectCoordinate)observations);
+		else if (observations instanceof DirectlyObservedParameterGroup)
+			return getPartialDerivativeDirectlyObservedParameters(sigma2apriori, NEQ, neq, (DirectlyObservedParameterGroup)observations);
 		
-		return null;
+		throw new UnsupportedOperationException("Error, unsupported or unknown observation type.");
 	}
 	
 	private static GaussMarkovEquations getPartialDerivativeScaleBar(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ScaleBar scaleBar) {
@@ -575,87 +417,31 @@ class PartialDerivativeFactory {
 		return stackNormalEquationSystem(NEQ, neq, A, P, w, columns, diagonalWeighting);
 	}
 	
-	private static GaussMarkovEquations getPartialDerivativeObservedCoordinate(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ObservedObjectCoordinate observedObjectCoordinate) {
-		ObjectCoordinate objectCoordinate = observedObjectCoordinate.getObjectCoordinate();
+	private static GaussMarkovEquations getPartialDerivativeDirectlyObservedParameters(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, DirectlyObservedParameterGroup observedParameterGroup) {
+		boolean diagonalWeighting = !observedParameterGroup.hasFullyPopulatedWeightMatrix();
 
-		double X = objectCoordinate.getX().getValue();
-		double Y = objectCoordinate.getY().getValue();
-		double Z = objectCoordinate.getZ().getValue();
+		int numberOfRows = observedParameterGroup.getNumberOfParameters();
 		
-		double varianceX  = observedObjectCoordinate.getX().getVariance();
-		double varianceY  = observedObjectCoordinate.getY().getVariance();
-		double varianceZ  = observedObjectCoordinate.getZ().getVariance();
-		
-		double corrCoefXY = observedObjectCoordinate.getCorrelationCoefficientXY();
-		double corrCoefXZ = observedObjectCoordinate.getCorrelationCoefficientXZ();
-		double corrCoefYZ = observedObjectCoordinate.getCorrelationCoefficientYZ();
-		
-		boolean diagonalWeighting = corrCoefXY == 0 && corrCoefXZ == 0 && corrCoefYZ == 0;
-		
-		int numberOfRows = observedObjectCoordinate.getNumberOfParameters();
-		
+		Matrix P = observedParameterGroup.getWeightMatrix(sigma2apriori);
 		DenseVector w = new DenseVector(numberOfRows);
 		DenseMatrix A = new DenseMatrix(numberOfRows, neq.size());
-
-		Matrix P = null;
-		if (diagonalWeighting) {
-			P = new UpperSymmBandMatrix(numberOfRows, 0);
-			P.set(0, 0, sigma2apriori/varianceX);
-			P.set(1, 1, sigma2apriori/varianceY);
-			P.set(2, 2, sigma2apriori/varianceZ);
-		}
-		else {
-			double covXY = corrCoefXY * Math.sqrt(varianceX * varianceY);
-			double covXZ = corrCoefXZ * Math.sqrt(varianceX * varianceZ);
-			double covYZ = corrCoefYZ * Math.sqrt(varianceY * varianceZ);
-	
-			P = new UpperSymmPackMatrix(numberOfRows);
-			// https://math.stackexchange.com/questions/233378/inverse-of-a-3-x-3-covariance-matrix-or-any-positive-definite-pd-matrix
-			P.set(0, 0, varianceY * varianceZ - covYZ * covYZ);  
-			P.set(1, 1, varianceX * varianceZ - covXZ * covXZ);
-			P.set(2, 2, varianceX * varianceY - covXY * covXY);
-			
-			P.set(0, 1, covXZ * covYZ - varianceZ * covXY);
-			P.set(0, 2, covXY * covYZ - varianceY * covXZ);  
-
-			P.set(1, 2, covXY * covXZ - varianceX * covYZ);
-
-			double invDet = sigma2apriori / ((varianceX * P.get(0, 0)) + (covXY * P.get(0, 1)) + (covXZ * P.get(0, 2)));
-			P.scale(invDet);
-		}
-
-		w.set(0, observedObjectCoordinate.getX().getValue() - X);
-		w.set(1, observedObjectCoordinate.getY().getValue() - Y);
-		w.set(2, observedObjectCoordinate.getZ().getValue() - Z);
-
-		List<Integer> columns = new ArrayList<Integer>();
-		int column = -1;
-
-		// Object point coordinates
-		column = objectCoordinate.getX().getColumn();
-		if (column >= 0 && column != Integer.MAX_VALUE) {
-			columns.add(column);
-			A.set(0, column, 1.0);
-			A.set(1, column, 0.0);
-			A.set(2, column, 0.0);
-		}
-
-		column = objectCoordinate.getY().getColumn();
-		if (column >= 0 && column != Integer.MAX_VALUE) {
-			columns.add(column);
-			A.set(0, column, 0.0);
-			A.set(1, column, 1.0);
-			A.set(2, column, 0.0);
-		}
-
-		column = objectCoordinate.getZ().getColumn();
-		if (column >= 0 && column != Integer.MAX_VALUE) {
-			columns.add(column);
-			A.set(0, column, 0.0);
-			A.set(1, column, 0.0);
-			A.set(2, column, 1.0);
-		}
 		
+		List<Integer> columns = new ArrayList<Integer>();
+		int row = 0;
+		
+		for (ObservationParameter<? extends UnknownParameter<?>> observedParameter : observedParameterGroup) {
+			UnknownParameter<?> unknownParameter = observedParameter.getReference();
+			int column = unknownParameter.getColumn();
+			
+			if (column >= 0 && column != Integer.MAX_VALUE) {
+				columns.add(column);
+				A.set(row, column, 1.0);
+			}
+			
+			double parameterValue = unknownParameter.getValue();
+			double observation    = observedParameter.getValue();
+			w.set(row++, observation - parameterValue);
+		}
 		return stackNormalEquationSystem(NEQ, neq, A, P, w, columns, diagonalWeighting);
 	}
 	
@@ -690,4 +476,145 @@ class PartialDerivativeFactory {
 		
 		return new GaussMarkovEquations(A, P, w);
 	}
+	
+//	static Map<ParameterType, Double> getMisclosures(ObservationParameterGroup<?> observations) {
+//	Map<ParameterType, Double> values = Collections.emptyMap();
+//	
+//	if (observations instanceof ImageCoordinate) 
+//		values = getCollinearityEquationValues((ImageCoordinate)observations);			
+//	else if (observations instanceof ScaleBar)
+//		values = getDistanceValue((ScaleBar)observations);
+//	
+//	Map<ParameterType, Double> misclosures = new HashMap<ParameterType, Double>(observations.getNumberOfParameters());
+//	for (ObservationParameter<?> observation : observations) {
+//		ParameterType parameterType = observation.getParameterType();
+//		double value = values.get(parameterType);
+//		// estimate residuum (== observed - calculated)
+//		misclosures.put(parameterType, observation.getValue() - value);
+//	}
+//	
+//	return misclosures;
+//}
+//
+//private static Map<ParameterType, Double> getDistanceValue(ScaleBar scaleBar) {
+//	ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
+//	ObjectCoordinate objectCoordinateB = scaleBar.getObjectCoordinateB();
+//
+//	double XA = objectCoordinateA.getX().getValue();
+//	double YA = objectCoordinateA.getY().getValue();
+//	double ZA = objectCoordinateA.getZ().getValue();
+//
+//	double XB = objectCoordinateB.getX().getValue();
+//	double YB = objectCoordinateB.getY().getValue();
+//	double ZB = objectCoordinateB.getZ().getValue();
+//
+//	double dX = XB - XA;
+//	double dY = YB - YA;
+//	double dZ = ZB - ZA;
+//
+//	return Map.ofEntries( 
+//			Map.entry(ParameterType.SCALE_BAR_LENGTH, Math.sqrt( dX*dX + dY*dY + dZ*dZ ))
+//	);
+//}
+//
+//private static Map<ParameterType, Double> getCollinearityEquationValues(ImageCoordinate imageCoordinate) {
+//	Image image = imageCoordinate.getReference();
+//	Camera camera = image.getReference();
+//	ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
+//
+//	double X = objectCoordinate.getX().getValue();
+//	double Y = objectCoordinate.getY().getValue();
+//	double Z = objectCoordinate.getZ().getValue();
+//
+//	double r0 = camera.getR0();
+//
+//	InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
+//	ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
+//
+//	double c  = interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE).getValue();
+//	double x0 = interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X).getValue();
+//	double y0 = interiorOrientation.get(ParameterType.PRINCIPAL_POINT_Y).getValue();
+//
+//	double A1 = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A1).getValue();
+//	double A2 = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).getValue();
+//	double A3 = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).getValue();
+//
+//	double B1 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).getValue();
+//	double B2 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).getValue();
+//
+//	double C1 = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).getValue();
+//	double C2 = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).getValue();
+//	
+//	double D1 = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).getValue();
+//	double D2 = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).getValue();
+//	double D3 = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).getValue();
+//
+//	double X0 = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).getValue();
+//	double Y0 = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).getValue();
+//	double Z0 = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).getValue();
+//
+//	double omega = exteriorOrientation.get(ParameterType.CAMERA_OMEGA).getValue();
+//	double phi   = exteriorOrientation.get(ParameterType.CAMERA_PHI).getValue();
+//	double kappa = exteriorOrientation.get(ParameterType.CAMERA_KAPPA).getValue();
+//
+//	double cosOmega = Math.cos(omega);
+//	double sinOmega = Math.sin(omega);
+//
+//	double cosPhi = Math.cos(phi);
+//	double sinPhi = Math.sin(phi);
+//
+//	double cosKappa = Math.cos(kappa);
+//	double sinKappa = Math.sin(kappa);
+//
+//	// Rotation (Luhmann (2023) Eq. 2.31, p. 62)
+//	double r11 =  cosPhi * cosKappa;
+//	double r12 = -cosPhi * sinKappa;
+//	double r13 =  sinPhi;
+//
+//	double r21 =  cosOmega * sinKappa + sinOmega * sinPhi * cosKappa;
+//	double r22 =  cosOmega * cosKappa - sinOmega * sinPhi * sinKappa;
+//	double r23 = -sinOmega * cosPhi;
+//
+//	double r31 = sinOmega * sinKappa - cosOmega * sinPhi * cosKappa;
+//	double r32 = sinOmega * cosKappa + cosOmega * sinPhi * sinKappa;
+//	double r33 = cosOmega * cosPhi;
+//
+//	double dX = X - X0;
+//	double dY = Y - Y0;
+//	double dZ = Z - Z0;
+//
+//	double kx = r11*dX + r21*dY + r31*dZ;
+//	double ky = r12*dX + r22*dY + r32*dZ;
+//	double N  = r13*dX + r23*dY + r33*dZ;
+//
+//	double kxN = kx/N;
+//	double kyN = ky/N;
+//
+//	double xs = -c*kxN;
+//	double ys = -c*kyN;
+//
+//	double r = Math.hypot(xs, ys);
+//	double dRad  = A1*r*r*r + A2*r*r*r*r*r + A3*r*r*r*r*r*r*r - (A1*r0*r0 + A2*r0*r0*r0*r0 + A3*r0*r0*r0*r0*r0*r0)*r;
+//
+//	double dRadX = xs * dRad/r;
+//	double dRadY = ys * dRad/r;
+//
+//	double dTanX = B1 * (r*r + 2.0*xs*xs) + 2.0 * B2 * xs * ys;
+//	double dTanY = B2 * (r*r + 2.0*ys*ys) + 2.0 * B1 * xs * ys;
+//
+//	double dAffX = C1*xs + C2*ys;
+//	double dAffY = 0;
+//
+//	double dDist = 1.0/N * (D1*r*r*r + D2*r*r*r*r*r + D3*r*r*r*r*r*r*r - (D1*r0*r0 + D2*r0*r0*r0*r0 + D3*r0*r0*r0*r0*r0*r0)*r);
+//	double dDistX = xs * dDist/r;
+//	double dDistY = ys * dDist/r;
+//	
+//	double deltaX = dRadX + dTanX + dAffX + dDistX;
+//	double deltaY = dRadY + dTanY + dAffY + dDistY;
+//	
+//	return Map.ofEntries( 
+//			Map.entry(ParameterType.IMAGE_COORDINATE_X, x0 + xs + deltaX),
+//			Map.entry(ParameterType.IMAGE_COORDINATE_Y, y0 + ys + deltaY) 
+//	);
+//}
 }

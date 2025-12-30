@@ -33,6 +33,13 @@ public class ObservationParameter<T> extends Parameter implements Referenceable<
 		this.reference = reference;
 	}
 	
+	public ObservationParameter(T parameter) { // Java 25
+		if (!(parameter instanceof UnknownParameter<?>))
+				throw new IllegalArgumentException("Error, parameter must be an UnknownParameter");
+		this(((UnknownParameter<?>)parameter).getParameterType(), parameter);
+		this.setValue(((UnknownParameter<?>)parameter).getValue());
+	}
+		
 	public void setRow(int row) {
 		this.row = row;
 	}

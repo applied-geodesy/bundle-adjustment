@@ -38,6 +38,7 @@ import org.applied_geodesy.adjustment.MathExtension;
 import org.applied_geodesy.adjustment.NormalEquationSystem;
 import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.parameter.DirectlyObservedParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
@@ -99,6 +100,7 @@ public class BundleAdjustment {
 	private Set<UnknownParameter<?>> unknownParameters = new LinkedHashSet<UnknownParameter<?>>();
 	private Set<ObjectCoordinate> objectCoordinates = new LinkedHashSet<ObjectCoordinate>();
 	private Set<ScaleBar> scaleBars = new LinkedHashSet<ScaleBar>();
+	private Set<DirectlyObservedParameterGroup> observedParameterGroups = new LinkedHashSet<DirectlyObservedParameterGroup>();
 	
 	public BundleAdjustment() {}
 	
@@ -167,11 +169,25 @@ public class BundleAdjustment {
 			}
 		}
 		
-		for (ObjectCoordinate coordinate : this.objectCoordinates) {
-			for (ObservedObjectCoordinate observedCoordinate : coordinate) {
-				observedCoordinate.getX().setValue(observedCoordinate.getX().getValue() + x0);
-				observedCoordinate.getY().setValue(observedCoordinate.getY().getValue() + y0);
-				observedCoordinate.getZ().setValue(observedCoordinate.getZ().getValue() + z0);
+		for (DirectlyObservedParameterGroup observedParameterGroup : this.observedParameterGroups) {
+			for (ObservationParameter<? extends UnknownParameter<?>> observedParameter : observedParameterGroup) {
+				ParameterType paramType = observedParameter.getParameterType();
+				switch(paramType) {
+				case CAMERA_COORDINATE_X:
+				case OBJECT_COORDINATE_X:
+					observedParameter.setValue(observedParameter.getValue() + x0);
+					break;
+				case CAMERA_COORDINATE_Y:
+				case OBJECT_COORDINATE_Y:
+					observedParameter.setValue(observedParameter.getValue() + y0);
+					break;
+				case CAMERA_COORDINATE_Z:
+				case OBJECT_COORDINATE_Z:
+					observedParameter.setValue(observedParameter.getValue() + z0);
+					break;
+				default:
+					break;
+				}
 			}
 		}
 	}
@@ -612,12 +628,19 @@ public class BundleAdjustment {
 		}
 	}
 	
-	public void add(Camera camera) {
-		this.cameras.add(camera);
+	public void add(Camera... cameras) {
+		for (Camera camera : cameras)
+			this.cameras.add(camera);
 	}
 
-	public void add(ScaleBar scaleBar) {
-		this.scaleBars.add(scaleBar);
+	public void add(ScaleBar... scaleBars) {
+		for (ScaleBar scaleBar : scaleBars)
+			this.scaleBars.add(scaleBar);
+	}
+	
+	public void add(DirectlyObservedParameterGroup... observedParameterGroups) {
+		for (DirectlyObservedParameterGroup observedParameterGroup : observedParameterGroups)
+			this.observedParameterGroups.add(observedParameterGroup);
 	}
 	
 	private void prepareUnknownParameters() {
@@ -626,6 +649,7 @@ public class BundleAdjustment {
 		for (Camera camera : this.cameras) {		
 			for (Image image : camera) {
 				for (ImageCoordinate imageCoordinate : image) {
+					// add row index in design matrix
 					imageCoordinate.getX().setRow( this.numberOfObservations++ );
 					imageCoordinate.getY().setRow( this.numberOfObservations++ );
 
@@ -667,6 +691,7 @@ public class BundleAdjustment {
 		}
 		
 		for (ScaleBar scaleBar : this.scaleBars) {
+			// add row index in design matrix
 			scaleBar.getLength().setRow( this.numberOfObservations++ );
 
 			ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
@@ -688,25 +713,30 @@ public class BundleAdjustment {
 			this.addObservationGroup(scaleBar);
 		}
 		
-		for (ObjectCoordinate coordinate : observedCoordinates) {
-			for (ObservedObjectCoordinate observedCoordinate : coordinate) {
-				observedCoordinate.getX().setRow( this.numberOfObservations++ );
-				observedCoordinate.getY().setRow( this.numberOfObservations++ );
-				observedCoordinate.getZ().setRow( this.numberOfObservations++ );
-			
-				this.objectCoordinates.add(coordinate);
-			
-				// add object coordinates as unknowns
-				this.addUnknownParameter(coordinate.getX());
-				this.addUnknownParameter(coordinate.getY());
-				this.addUnknownParameter(coordinate.getZ());
-			
-				// add observed coordinates as observations
-				this.addObservationGroup(observedCoordinate);
-
-				// coordinates are known by observations
-				coordinate.setDatum(Boolean.FALSE);
+		for (DirectlyObservedParameterGroup observedParameterGroup : this.observedParameterGroups) {
+			for (ObservationParameter<? extends UnknownParameter<?>> observedParameter : observedParameterGroup) {
+				UnknownParameter<?> unknownParameter = observedParameter.getReference();
+				ParameterType paramType = unknownParameter.getParameterType();
+				switch(paramType) {
+				case OBJECT_COORDINATE_X:
+				case OBJECT_COORDINATE_Y:
+				case OBJECT_COORDINATE_Z:
+					ObjectCoordinate coordinate = (ObjectCoordinate)unknownParameter.getReference();
+					this.objectCoordinates.add(coordinate);
+					
+					break;
+				default:
+					break;
+				}
+				
+				// add unknown parameter
+				this.addUnknownParameter(unknownParameter);
+				
+				// add row index in design matrix
+				observedParameter.setRow( this.numberOfObservations++ );
 			}
+			// add directly observed parameters
+			this.addObservationGroup(observedParameterGroup);
 		}
 		
 		this.detectRankDefect();
@@ -796,12 +826,55 @@ public class BundleAdjustment {
 				!this.rankDefect.estimateScale())
 				return;
 		
+		for (DirectlyObservedParameterGroup observedParameterGroup : this.observedParameterGroups) {
+			for (ObservationParameter<? extends UnknownParameter<?>> observedParameter : observedParameterGroup) {
+				ParameterType paramType = observedParameter.getParameterType();
+				switch(paramType) {
+				case CAMERA_COORDINATE_X:
+				case OBJECT_COORDINATE_X:
+					countKnownX++;
+					break;
+				case CAMERA_COORDINATE_Y:
+				case OBJECT_COORDINATE_Y:
+					countKnownY++;
+					break;
+				case CAMERA_COORDINATE_Z:
+				case OBJECT_COORDINATE_Z:
+					countKnownZ++;
+					break;
+				default:
+					break;
+				}
+				
+				if (this.rankDefect.estimateTranslationX() && countKnownX > 0)
+					this.rankDefect.setTranslationX(DefectType.FIXED);
+				if (this.rankDefect.estimateTranslationY() && countKnownY > 0)
+					this.rankDefect.setTranslationY(DefectType.FIXED);
+				if (this.rankDefect.estimateTranslationZ() && countKnownZ > 0)
+					this.rankDefect.setTranslationZ(DefectType.FIXED);
+				
+				if (!hasScaleBars && (countKnownX >= 2 || countKnownY >= 2 || countKnownZ >= 2))
+					this.rankDefect.setScale(DefectType.FIXED);
+				
+				if (countKnownX > 0 && countKnownY > 0 && countKnownZ > 0 && 
+						(hasScaleBars && countKnownX + countKnownY + countKnownZ >= 6 || !hasScaleBars && countKnownX + countKnownY + countKnownZ >= 7)) {
+					this.rankDefect.setRotationX(DefectType.FIXED);
+					this.rankDefect.setRotationY(DefectType.FIXED);
+					this.rankDefect.setRotationZ(DefectType.FIXED);
+				}
+				
+				if (!this.rankDefect.estimateTranslationX() && !this.rankDefect.estimateTranslationY() && !this.rankDefect.estimateTranslationZ() &&
+						!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ() &&
+						!this.rankDefect.estimateScale())
+						break;
+			}
+		}
+		
 		for (ObjectCoordinate coordinate : this.objectCoordinates) {
-			// count known (fixed or observed) coordinate components
-			boolean isDirectlyObserved = coordinate.iterator().hasNext();
-			countKnownX += isDirectlyObserved || coordinate.getX().getColumn() == Integer.MAX_VALUE ? 1 : 0;
-			countKnownY += isDirectlyObserved || coordinate.getY().getColumn() == Integer.MAX_VALUE ? 1 : 0;
-			countKnownZ += isDirectlyObserved || coordinate.getZ().getColumn() == Integer.MAX_VALUE ? 1 : 0;
+			// count known (fixed) coordinate components
+			countKnownX += coordinate.getX().getColumn() == Integer.MAX_VALUE ? 1 : 0;
+			countKnownY += coordinate.getY().getColumn() == Integer.MAX_VALUE ? 1 : 0;
+			countKnownZ += coordinate.getZ().getColumn() == Integer.MAX_VALUE ? 1 : 0;
 			
 			if (this.rankDefect.estimateTranslationX() && countKnownX > 0)
 				this.rankDefect.setTranslationX(DefectType.FIXED);
