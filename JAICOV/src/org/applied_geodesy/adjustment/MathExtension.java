@@ -33,9 +33,9 @@ import no.uib.cipr.matrix.MatrixSingularException;
 import no.uib.cipr.matrix.NotConvergedException;
 import no.uib.cipr.matrix.SVD;
 import no.uib.cipr.matrix.UnitUpperTriangBandMatrix;
+import no.uib.cipr.matrix.UpperSPDPackMatrix;
 import no.uib.cipr.matrix.UpperSymmBandMatrix;
 import no.uib.cipr.matrix.UpperSymmPackMatrix;
-import no.uib.cipr.matrix.UpperTriangPackMatrix;
 import no.uib.cipr.matrix.Vector;
 import no.uib.cipr.matrix.sparse.CompDiagMatrix;
 
@@ -66,7 +66,7 @@ public final class MathExtension {
 	}
 
 	/**
-	 * Liefert die Kondition einer Matrix c = cond(M) 
+	 * Liefert die Kondition einer Matrix <code>c = cond(M)</code> 
 	 * mithilfe von SVD
 	 * 
 	 * [u v w] = svd(M)
@@ -87,8 +87,8 @@ public final class MathExtension {
 	}	
 
 	/**
-	 * Liefert die Pseudoinverse Q = M<sup>+1</sup> 
-	 * der Matrix M mithilfe von SVD
+	 * Liefert die Pseudoinverse <code>Q = M<sup>+1</sup></code> 
+	 * der Matrix <code>M</code> mithilfe von SVD
 	 * 
 	 * [u v w] = svd(M)
 	 * Q = v*w<sup>-1</sup>*u<sup>T</sup> 
@@ -102,8 +102,8 @@ public final class MathExtension {
 	}
 
 	/**
-	 * Liefert die Pseudoinverse Q = M<sup>+1</sup> 
-	 * der Matrix M mithilfe von SVD
+	 * Liefert die Pseudoinverse <code>Q = M<sup>+1</sup></code> 
+	 * der Matrix <code>M</code> mithilfe von SVD
 	 * 
 	 * [u v w] = svd(M)
 	 * Q = v*w<sup>-1</sup>*u<sup>T</sup> 
@@ -148,8 +148,8 @@ public final class MathExtension {
 	}
 
 	/**
-	 * Liefert die Pseudoinverse Q = M<sup>+1</sup> 
-	 * der Matrix M mithilfe von SVD, wobei der Defekt
+	 * Liefert die Pseudoinverse <code>Q = M<sup>+1</sup></code> 
+	 * der Matrix <code>M</code> mithilfe von SVD, wobei der Defekt
 	 * der Matrix durch rank bereits vorgegeben ist.
 	 * Es werden nur die ersten n Singulaerwerte beruecksichtigt.
 	 * 
@@ -199,10 +199,111 @@ public final class MathExtension {
 	public static Matrix identity(int size) {
 		return new UnitUpperTriangBandMatrix(size,0);
 	}
+	
+	/**
+	 * Loest das Gleichungssystem <code>N * x = n</code>, wobei <code>N</code> positiv-definit sein muss. 
+	 * Der Vektor <code>n</code> wird hierbei mit dem Loesungsvektor <code>x</code> ueberschrieben. 
+	 * Wenn <code>invert = true</code>, dann wird <code>N</code> mit dessen Inverse ueberschrieben.
+	 * Die Matrix <code>N</code> liegt im PACK-Format vor.
+	 * 
+	 * @param N
+	 * @param n
+	 * @param numRows
+	 * @param invert
+	 * @throws MatrixNotSPDException
+	 * @throws IllegalArgumentException
+	 */
+	public static void solve(UpperSPDPackMatrix N, DenseVector n, int numRows, boolean invert) throws MatrixNotSPDException, IllegalArgumentException {
+		final String UPLO = "U";
+
+		double[] nd = n.getData();
+		double Nd[] = N.getData();
+
+		intW info = new intW(0);
+
+		// https://www.netlib.org/lapack/double/dppsv.f
+		LAPACK.getInstance().dppsv(UPLO, numRows, 1, Nd, nd, Math.max(1, numRows), info);
+
+		if (info.val > 0)
+			throw new MatrixNotSPDException();
+		else if (info.val < 0)
+			throw new IllegalArgumentException();
+
+		if (invert) {
+			// https://www.netlib.org/lapack/double/dpptri.f
+			LAPACK.getInstance().dpptri(UPLO, numRows, Nd, info);
+
+			if (info.val > 0)
+				throw new MatrixNotSPDException();
+			else if (info.val < 0)
+				throw new IllegalArgumentException();
+		}
+	}
+	
+	/**
+	 * Loest das Gleichungssystem <code>N * x = n</code>, wobei <code>N</code> positiv-definit sein muss. 
+	 * Der Vektor <code>n</code> wird hierbei mit dem Loesungsvektor <code>x</code> ueberschrieben. 
+	 * Wenn <code>invert = true</code>, dann wird <code>N</code> mit dessen Inverse ueberschrieben.
+	 * Die Matrix <code>N</code> liegt im PACK-Format vor.
+	 * 
+	 * @param N
+	 * @param n
+	 * @param invert
+	 * @throws MatrixNotSPDException
+	 * @throws IllegalArgumentException
+	 */
+	public static void solve(UpperSPDPackMatrix N, DenseVector n, boolean invert) throws MatrixNotSPDException, IllegalArgumentException {
+		solve(N, n, N.numRows(), invert);
+	}
+	
+	/**
+	 * Liefert die Inverse einer symmetrischen oberen Dreiecksmatrix mittels <code>N = U'U</code> Cholesky-Zerlegung. 
+	 * <code>N</code> muss positiv-definit sein und wird hierbei ueberschrieben.
+	 * 
+	 * @param  N Matrix
+	 * @throws MatrixNotSPDException
+	 * @throws IllegalArgumentException
+	 */
+	public static void inv(UpperSPDPackMatrix N) throws MatrixNotSPDException, IllegalArgumentException {
+		inv(N, N.numRows());
+	}
 
 	/**
-	 * Loest das Gleichungssystem <code>N * x = n</code>. Der Vektor n wird hierbei mit dem Loesungsvektor <code>x</code> ueberschrieben. 
+	 * Liefert die Inverse einer symmetrischen oberen Dreiecksmatrix mittels <code>N = U'U</code> Cholesky-Zerlegung. 
+	 * <code>N</code> muss positiv-definit sein und wird hierbei ueberschrieben.
+	 * Die Matrix <code>N</code> liegt im PACK-Format vor.
+	 * 
+	 * @param  N Matrix
+	 * @param numRows Anzahl der Spalten in N, die beim invertieren zu beruecksichtigen sind
+	 * @throws MatrixNotSPDException
+	 * @throws IllegalArgumentException
+	 */
+	public static void inv(UpperSPDPackMatrix N, int numRows) throws MatrixNotSPDException, IllegalArgumentException {
+		final String UPLO = "U";
+		intW info = new intW(0);
+		double qd[] = N.getData();
+
+		// https://www.netlib.org/lapack/double/dpptrf.f
+		LAPACK.getInstance().dpptrf(UPLO, numRows, qd, info);
+
+		if (info.val > 0)
+			throw new MatrixNotSPDException();
+		else if (info.val < 0)
+			throw new IllegalArgumentException();
+		
+		// https://www.netlib.org/lapack/double/dpptri.f
+		LAPACK.getInstance().dpptri(UPLO, numRows, qd, info);
+
+		if (info.val > 0)
+			throw new MatrixNotSPDException();
+		else if (info.val < 0)
+			throw new IllegalArgumentException();
+	}	
+
+	/**
+	 * Loest das Gleichungssystem <code>N * x = n</code>. Der Vektor <code>n</code> wird hierbei mit dem Loesungsvektor <code>x</code> ueberschrieben. 
 	 * Wenn <code>invert = true</code>, dann wird <code>N</code> mit dessen Inverse ueberschrieben.
+	 * Die Matrix <code>N</code> liegt im PACK-Format vor.
 	 * 
 	 * @param N
 	 * @param n
@@ -220,7 +321,7 @@ public final class MathExtension {
 
 		intW info = new intW(0);
 
-		// http://www.netlib.org/lapack/double/dspsv.f
+		// https://www.netlib.org/lapack/double/dspsv.f
 		LAPACK.getInstance().dspsv(UPLO, numRows, 1, Nd, ipiv, nd, Math.max(1, numRows), info);
 
 		if (info.val > 0)
@@ -231,7 +332,7 @@ public final class MathExtension {
 		if (invert) {
 			double work[] = new double[numRows];
 
-			// http://www.netlib.org/lapack/double/dsptri.f
+			// https://www.netlib.org/lapack/double/dsptri.f
 			LAPACK.getInstance().dsptri(UPLO, numRows, Nd, ipiv, work, info);
 
 			if (info.val > 0)
@@ -242,8 +343,9 @@ public final class MathExtension {
 	}
 
 	/**
-	 * Loest das Gleichungssystem <code>N * x = n</code>. Der Vektor n wird hierbei mit dem Loesungsvektor <code>x</code> ueberschrieben. 
+	 * Loest das Gleichungssystem <code>N * x = n</code>. Der Vektor <code>n</code> wird hierbei mit dem Loesungsvektor <code>x</code> ueberschrieben. 
 	 * Wenn <code>invert = true</code>, dann wird <code>N</code> mit dessen Inverse ueberschrieben.
+	 * Die Matrix <code>N</code> liegt im PACK-Format vor.
 	 * 
 	 * @param N
 	 * @param n
@@ -268,6 +370,7 @@ public final class MathExtension {
 
 	/**
 	 * Liefert die Inverse einer symmetrischen oberen Dreiecksmatrix mittels <code>N = LDL'</code> Zerlegung. <code>N</code> wird hierbei ueberschrieben.
+	 * Die Matrix <code>N</code> liegt im PACK-Format vor.
 	 * 
 	 * @param  N Matrix
 	 * @param numRows Anzahl der Spalten in N, die beim invertieren zu beruecksichtigen sind
@@ -280,7 +383,7 @@ public final class MathExtension {
 		intW info = new intW(0);
 		double qd[] = N.getData();
 
-		// http://www.netlib.org/lapack/double/dsptrf.f
+		// https://www.netlib.org/lapack/double/dsptrf.f
 		LAPACK.getInstance().dsptrf(UPLO, numRows, qd, ipiv, info);
 
 		if (info.val > 0)
@@ -290,7 +393,7 @@ public final class MathExtension {
 
 		double work[] = new double[numRows];
 
-		// http://www.netlib.org/lapack/double/dsptri.f
+		// https://www.netlib.org/lapack/double/dsptri.f
 		LAPACK.getInstance().dsptri(UPLO, numRows, qd, ipiv, work, info);
 
 		if (info.val > 0)
@@ -304,7 +407,7 @@ public final class MathExtension {
 	 * Eigenwerte ergeben sich aus dem Intervall <code>il <= i <= iu</code>, mit <code>il >= 1</code> und <code>ul <= n</code>.
 	 * Sie werden in aufsteigender Reihenfolge ermittelt. Ist die Flag <code>vectors = true</code> gesetzt, werden die zugehoerigen
 	 * Eigenvektoren mitbestimmt. Durch die Flag <code>n</code> kann die Eigenwert/-vektorbestimmung auf die ersten <code>n</code>-Elemente
-	 * begrenzt werden.
+	 * begrenzt werden. Die Matrix <code>N</code> liegt im PACK-Format vor.
 	 * 
 	 * Die Eigenwerte <code>eval</code> werden als UpperSymmBandMatrix gespeichert, die Eigenvektoren <code>evec</code> in einer DenseMatrix.
 	 * 
@@ -346,7 +449,7 @@ public final class MathExtension {
 		int ifail[] = vectors ? new int[n] : new int[0];
 		intW info = new intW(0);
 
-		// http://www.netlib.org/lapack/double/dspevx.f
+		// https://www.netlib.org/lapack/double/dspevx.f
 		//LAPACK.getInstance().dspevx(jobz, range, uplo, n, ap, vl, vu, il, iu, abstol, m, eval.getData(), evec.getData(), ldz, work, iwork, ifail, info);
 		LAPACK.getInstance().dspevx(jobz, range, uplo, n, ap, vl, vu, il, iu, abstol, m, evalArray, evec.getData(), ldz, work, iwork, ifail, info);
 
@@ -406,44 +509,21 @@ public final class MathExtension {
 		c.set(2, a.get(0)*b.get(1) - a.get(1)*b.get(0));
 		return c;
 	}
-
+	
 	/**
-	 * In-Place Cholesky-Zerlegung einer (oberen) symmetrischen Matrix.
+	 * In-Place Cholesky-Zerlegung einer (oberen) symmetrischen Matrix <code>M = U'U</code>. 
+	 * Die Symmetrie wird nicht geprueft waerend der Zerlegung. Die Matrix liegt im PACK-Format vor.
 	 * 
-	 * @param M
-	 * @throws IllegalArgumentException
-	 * @throws MatrixNotSPDException
-	 */
-	public static void chol(UpperTriangPackMatrix M) throws IllegalArgumentException, MatrixNotSPDException {
-		packChol(M.numRows(), M.getData());
-	}
-
-	/**
-	 * In-Place Cholesky-Zerlegung einer (oberen) symmetrischen Matrix.
-	 * 
-	 * @param M
+	 * @param M Matrix
 	 * @throws IllegalArgumentException
 	 * @throws MatrixNotSPDException
 	 */
 	public static void chol(UpperSymmPackMatrix M) throws IllegalArgumentException, MatrixNotSPDException {
-		packChol(M.numRows(), M.getData());
-	}	
-
-	/**
-	 * In-Place Cholesky-Zerlegung einer (oberen) symmetrischen Matrix. 
-	 * Die Symmetrie wird nicht geprueft waerend der Zerlegung. Das Array
-	 * liegt im PACK-Format vor.
-	 * 
-	 * @param size
-	 * @param data
-	 * @throws IllegalArgumentException
-	 * @throws MatrixNotSPDException
-	 */
-	private static void packChol(int size, double data[]) throws IllegalArgumentException, MatrixNotSPDException {
 		final String uplo = "U";
 		intW info = new intW(0);
-
-		LAPACK.getInstance().dpptrf(uplo, size, data, info);
+		double ap[] = M.getData();
+		int size = M.numRows();
+		LAPACK.getInstance().dpptrf(uplo, size, ap, info);
 
 		if (info.val > 0)
 			throw new MatrixNotSPDException("Error, matrix must be positive definite!");
@@ -470,7 +550,7 @@ public final class MathExtension {
 	}
 
 	/**
-	 * Bestimmt den Arkuskotangens mit Quadrantenabfrage, d.h., atan2(y, x) == acot2(x, y)
+	 * Bestimmt den Arkuskotangens mit Quadrantenabfrage, d.h., <code>atan2(y, x) == acot2(x, y)</code>
 	 * @param x
 	 * @param y
 	 * @return acot2(x, y)

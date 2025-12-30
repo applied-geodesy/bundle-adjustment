@@ -23,9 +23,11 @@ package org.applied_geodesy.adjustment.bundle.example;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 
 import org.applied_geodesy.adjustment.EstimationStateType;
 import org.applied_geodesy.adjustment.EstimationType;
@@ -37,6 +39,8 @@ import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
 import org.applied_geodesy.adjustment.bundle.ScaleBar;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment.MatrixInversion;
 import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.parameter.DirectlyObservedParameterGroup;
+import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.util.io.reader.aicon.EORFileReader;
@@ -45,7 +49,10 @@ import org.applied_geodesy.util.io.reader.aicon.OBCFileReader;
 import org.applied_geodesy.util.io.reader.aicon.PHCFileReader;
 import org.applied_geodesy.util.io.reader.aicon.ScaleFileReader;
 
+import no.uib.cipr.matrix.DenseMatrix;
 import no.uib.cipr.matrix.Matrix;
+import no.uib.cipr.matrix.MatrixEntry;
+import no.uib.cipr.matrix.UpperSPDPackMatrix;
 
 public class ExampleFlatFiles implements PropertyChangeListener {
 
@@ -94,8 +101,12 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 		PHCFileReader phcReader = new PHCFileReader(basepath + ".phc", camera, coordinates);
 		phcReader.readAndImport();
 		
-		// Specify the points, which are used to define the datum of the frame
-		// !!! this step is not mandatory, just for demonstrations !!!
+		// Specify the points, which are used to define the frame datum using a random stochastic model
+		// !!! This step is not mandatory, just for demonstrations !!!
+		ArrayList<ObservationParameter<? extends UnknownParameter<?>>> observedCoordinates = new ArrayList<ObservationParameter<? extends UnknownParameter<?>>>();
+		// Random stochastic model
+		Random random = new Random();
+		double sigma0 = 0.001;
 		for (Image image : camera) {
 			// Call the images taken from this camera object
 			// and extract the image coordinates
@@ -104,15 +115,48 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 				ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
 				if (objectCoordinate.getName().length() > 3)
 					objectCoordinate.setDatum(Boolean.FALSE);
+				
+				if (objectCoordinate.isDatum()) {
+					objectCoordinate.setDatum(Boolean.FALSE);
+					
+					ObservationParameter<UnknownParameter<ObjectCoordinate>> obsX = new ObservationParameter<UnknownParameter<ObjectCoordinate>>(objectCoordinate.getX());
+					ObservationParameter<UnknownParameter<ObjectCoordinate>> obsY = new ObservationParameter<UnknownParameter<ObjectCoordinate>>(objectCoordinate.getY());
+					ObservationParameter<UnknownParameter<ObjectCoordinate>> obsZ = new ObservationParameter<UnknownParameter<ObjectCoordinate>>(objectCoordinate.getZ());
+					
+					// If only variances (or standard deviations) are known, simply add the corresponding values directly to the observations to save memory
+					// obsX.setVariance(Math.pow(random.nextGaussian(0, sigma0), 2));
+					// obsY.setVariance(Math.pow(random.nextGaussian(0, sigma0), 2));
+					// obsZ.setVariance(Math.pow(random.nextGaussian(0, sigma0), 2));
+					
+					observedCoordinates.add(obsX);
+					observedCoordinates.add(obsY);
+					observedCoordinates.add(obsZ);
+				}
 			}
-		}	
+		}
+
+		// Create a fully populated dispersion matrix D = U'*U
+		int size = observedCoordinates.size();
+		DenseMatrix U = new DenseMatrix(size, size);
+		for (MatrixEntry element : U) 
+			element.set(random.nextGaussian(0, sigma0));
+
+		DenseMatrix V = new DenseMatrix(U, Boolean.TRUE);
+		UpperSPDPackMatrix dispersion = new UpperSPDPackMatrix(size);
+		U.transAmult(V, dispersion);
+		DirectlyObservedParameterGroup observedObjectCoordinate = new DirectlyObservedParameterGroup(dispersion, observedCoordinates);	
+		
 		
 		// Create an adjustment object
 		BundleAdjustment adjustment = new BundleAdjustment();
-		// Add camera(s) and Scalebar(s) to adjustment object
+		// Add camera(s) and images to adjustment object
 		adjustment.add(camera);
+		// Add scale bar(s) to adjustment object
 		for (ScaleBar scaleBar : scaleBars)
 			adjustment.add(scaleBar);
+		// Add observed coordinates to adjustment object
+		adjustment.add(observedObjectCoordinate);
+		
 		
 		// Add a listener to get notifications of the adjustment process (not required)
 		adjustment.addPropertyChangeListener(new ExampleFlatFiles());
@@ -144,8 +188,8 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 				UnknownParameter<ObjectCoordinate> Y = objectCoordinate.getY();
 				UnknownParameter<ObjectCoordinate> Z = objectCoordinate.getZ();
 
-				// indicate datum (d) and object points (o)
-				char datum = objectCoordinate.isDatum() ? 'd' : 'o';
+				// indicate observed point (o) and new object points (n)
+				char datum = (objectCoordinate.getName().length() > 3) ? 'n' : 'o';
 
 				double x = X.getValue();
 				double y = Y.getValue();

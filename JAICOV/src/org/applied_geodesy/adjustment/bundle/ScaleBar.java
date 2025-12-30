@@ -56,8 +56,8 @@ public class ScaleBar implements ObservationParameterGroup<ScaleBar> {
 	}
 
 	@Override
-	public Iterator<ObservationParameter<ScaleBar>> iterator() {
-		return new Iterator<ObservationParameter<ScaleBar>>() {
+	public Iterator<ObservationParameter<? extends ScaleBar>> iterator() {
+		return new Iterator<ObservationParameter<? extends ScaleBar>>() {
 			private boolean first = true;
 			@Override
 			public boolean hasNext() {

@@ -78,8 +78,8 @@ public class ImageCoordinate implements Referenceable<Image>, ObservationParamet
 	}
 
 	@Override
-	public Iterator<ObservationParameter<ImageCoordinate>> iterator() {
-		return new Iterator<ObservationParameter<ImageCoordinate>>() {
+	public Iterator<ObservationParameter<? extends ImageCoordinate>> iterator() {
+		return new Iterator<ObservationParameter<? extends ImageCoordinate>>() {
 			private byte component = 0;
 			@Override
 			public boolean hasNext() {
