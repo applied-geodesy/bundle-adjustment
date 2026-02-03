@@ -830,6 +830,29 @@ public class BundleAdjustment {
 			for (ObservationParameter<? extends UnknownParameter<?>> observedParameter : observedParameterGroup) {
 				ParameterType paramType = observedParameter.getParameterType();
 				switch(paramType) {
+				
+				case CAMERA_OMEGA:
+					this.rankDefect.setRotationX(DefectType.FIXED);
+					break;
+				case CAMERA_PHI:
+					this.rankDefect.setRotationY(DefectType.FIXED);
+					break;
+				case CAMERA_KAPPA:
+					this.rankDefect.setRotationZ(DefectType.FIXED);
+					break;
+				default:
+					break;
+				}
+				
+				if (!this.rankDefect.estimateRotationX() && !this.rankDefect.estimateRotationY() && !this.rankDefect.estimateRotationZ())
+					break;
+			}
+		}
+		
+		for (DirectlyObservedParameterGroup observedParameterGroup : this.observedParameterGroups) {
+			for (ObservationParameter<? extends UnknownParameter<?>> observedParameter : observedParameterGroup) {
+				ParameterType paramType = observedParameter.getParameterType();
+				switch(paramType) {
 				case CAMERA_COORDINATE_X:
 				case OBJECT_COORDINATE_X:
 					countKnownX++;
@@ -842,10 +865,20 @@ public class BundleAdjustment {
 				case OBJECT_COORDINATE_Z:
 					countKnownZ++;
 					break;
+				case CAMERA_OMEGA:
+					this.rankDefect.setRotationX(DefectType.FIXED);
+					break;
+				case CAMERA_PHI:
+					this.rankDefect.setRotationY(DefectType.FIXED);
+					break;
+				case CAMERA_KAPPA:
+					this.rankDefect.setRotationZ(DefectType.FIXED);
+					break;
 				default:
 					break;
 				}
 				
+				// theoretical condition for shift
 				if (this.rankDefect.estimateTranslationX() && countKnownX > 0)
 					this.rankDefect.setTranslationX(DefectType.FIXED);
 				if (this.rankDefect.estimateTranslationY() && countKnownY > 0)
@@ -853,8 +886,17 @@ public class BundleAdjustment {
 				if (this.rankDefect.estimateTranslationZ() && countKnownZ > 0)
 					this.rankDefect.setTranslationZ(DefectType.FIXED);
 				
+				// theoretical condition for scaling
 				if (!hasScaleBars && (countKnownX >= 2 || countKnownY >= 2 || countKnownZ >= 2))
 					this.rankDefect.setScale(DefectType.FIXED);
+
+				// theoretical condition for rotation
+				if (this.rankDefect.estimateRotationX() && countKnownY >= 2 && countKnownZ >= 2)
+					this.rankDefect.setRotationX(DefectType.FIXED);
+				if (this.rankDefect.estimateRotationY() && countKnownX >= 2 && countKnownZ >= 2)
+					this.rankDefect.setRotationY(DefectType.FIXED);
+				if (this.rankDefect.estimateRotationZ() && countKnownX >= 2 && countKnownY >= 2)
+					this.rankDefect.setRotationZ(DefectType.FIXED);
 				
 				if (countKnownX > 0 && countKnownY > 0 && countKnownZ > 0 && 
 						(hasScaleBars && countKnownX + countKnownY + countKnownZ >= 6 || !hasScaleBars && countKnownX + countKnownY + countKnownZ >= 7)) {
@@ -876,6 +918,7 @@ public class BundleAdjustment {
 			countKnownY += coordinate.getY().getColumn() == Integer.MAX_VALUE ? 1 : 0;
 			countKnownZ += coordinate.getZ().getColumn() == Integer.MAX_VALUE ? 1 : 0;
 			
+			// theoretical condition for shift
 			if (this.rankDefect.estimateTranslationX() && countKnownX > 0)
 				this.rankDefect.setTranslationX(DefectType.FIXED);
 			if (this.rankDefect.estimateTranslationY() && countKnownY > 0)
@@ -883,8 +926,17 @@ public class BundleAdjustment {
 			if (this.rankDefect.estimateTranslationZ() && countKnownZ > 0)
 				this.rankDefect.setTranslationZ(DefectType.FIXED);
 			
+			// theoretical condition for scaling
 			if (!hasScaleBars && (countKnownX >= 2 || countKnownY >= 2 || countKnownZ >= 2))
 				this.rankDefect.setScale(DefectType.FIXED);
+			
+			// theoretical condition for rotation
+			if (this.rankDefect.estimateRotationX() && countKnownY >= 2 && countKnownZ >= 2)
+				this.rankDefect.setRotationX(DefectType.FIXED);
+			if (this.rankDefect.estimateRotationY() && countKnownX >= 2 && countKnownZ >= 2)
+				this.rankDefect.setRotationY(DefectType.FIXED);
+			if (this.rankDefect.estimateRotationZ() && countKnownX >= 2 && countKnownY >= 2)
+				this.rankDefect.setRotationZ(DefectType.FIXED);
 			
 			if (countKnownX > 0 && countKnownY > 0 && countKnownZ > 0 && 
 					(hasScaleBars && countKnownX + countKnownY + countKnownZ >= 6 || !hasScaleBars && countKnownX + countKnownY + countKnownZ >= 7)) {
@@ -919,6 +971,7 @@ public class BundleAdjustment {
 				countKnownY += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).getColumn() == Integer.MAX_VALUE ? 1 : 0;
 				countKnownZ += exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).getColumn() == Integer.MAX_VALUE ? 1 : 0;
 
+				// theoretical condition for shift
 				if (this.rankDefect.estimateTranslationX() && countKnownX > 0)
 					this.rankDefect.setTranslationX(DefectType.FIXED);
 				if (this.rankDefect.estimateTranslationY() && countKnownY > 0)
@@ -926,8 +979,17 @@ public class BundleAdjustment {
 				if (this.rankDefect.estimateTranslationZ() && countKnownZ > 0)
 					this.rankDefect.setTranslationZ(DefectType.FIXED);
 
+				// theoretical condition for scaling
 				if (!hasScaleBars && (countKnownX >= 2 || countKnownY >= 2 || countKnownZ >= 2))
 					this.rankDefect.setScale(DefectType.FIXED);
+				
+				// theoretical condition for rotation
+				if (this.rankDefect.estimateRotationX() && countKnownY >= 2 && countKnownZ >= 2)
+					this.rankDefect.setRotationX(DefectType.FIXED);
+				if (this.rankDefect.estimateRotationY() && countKnownX >= 2 && countKnownZ >= 2)
+					this.rankDefect.setRotationY(DefectType.FIXED);
+				if (this.rankDefect.estimateRotationZ() && countKnownX >= 2 && countKnownY >= 2)
+					this.rankDefect.setRotationZ(DefectType.FIXED);
 
 				if (countKnownX > 0 && countKnownY > 0 && countKnownZ > 0 && 
 						(hasScaleBars && countKnownX + countKnownY + countKnownZ >= 6 || !hasScaleBars && countKnownX + countKnownY + countKnownZ >= 7)) {
