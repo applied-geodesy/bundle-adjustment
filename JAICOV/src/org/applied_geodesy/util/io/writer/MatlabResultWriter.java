@@ -96,21 +96,24 @@ public class MatlabResultWriter extends BundleAdjustmentResultWriter {
 			coordinates.set("Z", structIndex, newDouble(Z.getValue()));
 			
 			if (columnX >= 0 && columnX < Integer.MAX_VALUE) {
-				indices.add(columnX);
+				if (exportDispersionMatrix)
+					indices.add(columnX);
 				columnX = columnIndex++;
 			}
 			else
 				columnX = -1;
 			
 			if (columnY >= 0 && columnY < Integer.MAX_VALUE) {
-				indices.add(columnY);
+				if (exportDispersionMatrix)
+					indices.add(columnY);
 				columnY = columnIndex++;
 			}
 			else
 				columnY = -1;
 			
 			if (columnZ >= 0 && columnZ < Integer.MAX_VALUE) {
-				indices.add(columnZ);
+				if (exportDispersionMatrix)
+					indices.add(columnZ);
 				columnZ = columnIndex++;
 			}
 			else
@@ -134,7 +137,8 @@ public class MatlabResultWriter extends BundleAdjustmentResultWriter {
 					int column = param.getColumn();
 					
 					if (column >= 0 && column < cofactor.numColumns()) {
-						indices.add(column);
+						if (exportDispersionMatrix)
+							indices.add(column);
 						column = columnIndex++;
 					}
 					else
