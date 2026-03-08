@@ -59,6 +59,7 @@ public class BundleAdjustment {
 	public enum MatrixInversion {
 		NONE,
 		FULL,
+		PRE_ELIMINATION,
 		REDUCED
 	};
 	
@@ -250,34 +251,48 @@ public class BundleAdjustment {
 						}
 						
 						// in-place solution of NES, i.e., N <-- Qxx, n <-- dx 
-						if (this.invertNormalEquationMatrix == MatrixInversion.REDUCED) {
+						if (this.invertNormalEquationMatrix == MatrixInversion.REDUCED || this.invertNormalEquationMatrix == MatrixInversion.PRE_ELIMINATION) {
 							int numRows = this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 + this.rankDefect.getDefect();
 							// reduced system of equations
-							this.reduceNormalEquationMatrix(neq);
+							this.reduceNormalEquationSystem(neq);
 							// in-place solution of NES, i.e., N <-- Qxx, n <-- dx 
 							MathExtension.solve(N, n, numRows, Boolean.TRUE);
 						}
 						else {
+							// in-place solution of NES, i.e., N <-- Qxx, n <-- dx 
 							MathExtension.solve(N, n, this.invertNormalEquationMatrix == MatrixInversion.FULL);
 						}
-
+						// reverse pre-condition to normal equation system
 						NormalEquationSystem.applyPrecondition(neq.getPreconditioner(), N, dx);
 						this.Qxx = N;
-
-
+						
 						if (this.calculateStochasticParameters) {
 							this.currentEstimationStatus = EstimationStateType.ESTIAMTE_STOCHASTIC_PARAMETERS;
 							this.change.firePropertyChange(this.currentEstimationStatus.name(), false, true);
 						}
 					}
 					else {
-						// Solve Nx = n in-place, i.e., n <-- dx 
-						MathExtension.solve(N, n, false);
+						// Solve Nx = n in-place, i.e., n <-- dx
+						if (this.invertNormalEquationMatrix == MatrixInversion.PRE_ELIMINATION) {
+							int numRows = this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 + this.rankDefect.getDefect();
+							// reduced system of equations
+							this.reduceNormalEquationSystem(neq);
+							// in-place solution of NES, i.e., n <-- dx 
+							MathExtension.solve(N, n, numRows, Boolean.FALSE);
+							// determination of reduced parameters
+							this.extractReducedParameters(neq);
+						}
+						else {
+							// in-place solution of NES, i.e., n <-- dx 
+							MathExtension.solve(N, n, Boolean.FALSE);
+						}
+						// reverse pre-condition to normal equation system
 						NormalEquationSystem.applyPrecondition(neq.getPreconditioner(), null, dx);
 					}
 
-					n = null;
-					N = null;
+					neq = null;
+					n   = null;
+					N   = null;
 				}
 				catch (MatrixSingularException | MatrixNotSPDException | IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
 					e.printStackTrace();
@@ -488,7 +503,6 @@ public class BundleAdjustment {
 			y0 += objectCoordinate.getY().getValue();
 			z0 += objectCoordinate.getZ().getValue();
 			count++;
-
 		}
 
 		if (count < 3)
@@ -1163,12 +1177,12 @@ public class BundleAdjustment {
 		return this.dampingValue;
 	}
 	
-	private void reduceNormalEquationMatrix(NormalEquationSystem neq) throws IllegalArgumentException, MatrixSingularException {
+	private void reduceNormalEquationSystem(NormalEquationSystem neq) throws IllegalArgumentException, MatrixSingularException {
 		for (Camera camera : this.cameras)
-			this.reduceNormalEquationMatrix(neq, camera);
+			this.reduceNormalEquationSystem(neq, camera);
 	}
 	
-	private void reduceNormalEquationMatrix(NormalEquationSystem neq, Camera camera) throws IllegalArgumentException, MatrixSingularException {
+	private void reduceNormalEquationSystem(NormalEquationSystem neq, Camera camera) throws IllegalArgumentException, MatrixSingularException {
 		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 		
 		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(13);
@@ -1179,10 +1193,10 @@ public class BundleAdjustment {
 		}
 
 		for (Image image : camera)
-			this.reduceNormalEquationMatrix(neq, image, unknownInteriorOrientation);
+			this.reduceNormalEquationSystem(neq, image, unknownInteriorOrientation);
 	}
 	
-	private void reduceNormalEquationMatrix(NormalEquationSystem neq, Image image, List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation) throws IllegalArgumentException, MatrixSingularException {
+	private void reduceNormalEquationSystem(NormalEquationSystem neq, Image image, List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation) throws IllegalArgumentException, MatrixSingularException {
 		UpperSymmPackMatrix N = neq.getMatrix();
 		DenseVector n = neq.getVector();
 		
@@ -1195,6 +1209,10 @@ public class BundleAdjustment {
 			unknownExteriorOrientation.add(unknownParameter);
 		}
 		
+		// |N11 N12| |x1|   |n1|
+		// |N21 N22| |x2| = |n2|
+		
+		// Extract N22 block and n2
 		UpperSymmPackMatrix N22 = new UpperSymmPackMatrix(unknownExteriorOrientation.size());
 		DenseVector n2 = new DenseVector(N22.numRows());
 		for (int rowN22 = 0; rowN22 < N22.numRows(); rowN22++) {
@@ -1208,20 +1226,67 @@ public class BundleAdjustment {
 				N22.set(rowN22, columnN22, N.get(rowN, columnN));
 			}
 			n2.set(rowN22, n.get(rowN));
+			
+			if (this.invertNormalEquationMatrix == MatrixInversion.PRE_ELIMINATION)
+				n.set(rowN, 0); // reset values to store dx2 --> n
 		}
-		
 		MathExtension.inv(N22);
 
+		if (this.invertNormalEquationMatrix == MatrixInversion.PRE_ELIMINATION) {
+			// Pre-preperation for extracting eliminated parameters from reduced system
+			// save inverted block matrix and dx = inv(N22)*n2 --> N and n
+			for (int rowN22 = 0; rowN22 < N22.numRows(); rowN22++) {
+				UnknownParameter<ExteriorOrientation> unknownParameterRow = unknownExteriorOrientation.get(rowN22);
+				int rowN = unknownParameterRow.getColumn();
+				double nr = n2.get(rowN22);
+
+				// main diagonal elements
+				double diagValN22 = N22.get(rowN22, rowN22);
+				N.set(rowN, rowN, diagValN22);
+				n.add(rowN, diagValN22 * nr);
+
+				for (int columnN22 = rowN22 + 1; columnN22 < N22.numColumns(); columnN22++) {
+					UnknownParameter<ExteriorOrientation> unknownParameterColumn = unknownExteriorOrientation.get(columnN22);
+					int columnN = unknownParameterColumn.getColumn();
+					double nc = n2.get(columnN22);
+
+					// off diagonal elements
+					double offDiagValN22 = N22.get(rowN22, columnN22);
+					N.set(rowN, columnN, offDiagValN22);
+					n.add(rowN,    offDiagValN22 * nc);
+					n.add(columnN, offDiagValN22 * nr);
+				}
+				
+//				double dx2 = 0;
+//				for (int columnN22 = 0; columnN22 < N22.numColumns(); columnN22++) {
+//					UnknownParameter<ExteriorOrientation> unknownParameterColumn = unknownExteriorOrientation.get(columnN22);
+//					int columnN = unknownParameterColumn.getColumn();
+//
+//					if (columnN22 >= rowN22)
+//						N.set(rowN, columnN, N22.get(rowN22, columnN22));
+//
+//					dx2 += N22.get(rowN22, columnN22) * n2.get(columnN22);
+//				}
+//				n.set(rowN, dx2);
+			}
+		}
+		
 		List<UnknownParameter<?>> unknownParameters = new ArrayList<UnknownParameter<?>>();
 		unknownParameters.addAll(unknownInteriorOrientation);
 		
 		for (ImageCoordinate imageCoordinate : image) {
 			ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
-			unknownParameters.add(objectCoordinate.getX());
-			unknownParameters.add(objectCoordinate.getY());
-			unknownParameters.add(objectCoordinate.getZ());
+			if (objectCoordinate.getX().getColumn() >= 0 && objectCoordinate.getX().getColumn() != Integer.MAX_VALUE)
+				unknownParameters.add(objectCoordinate.getX());
+			if (objectCoordinate.getY().getColumn() >= 0 && objectCoordinate.getY().getColumn() != Integer.MAX_VALUE)
+				unknownParameters.add(objectCoordinate.getY());
+			if (objectCoordinate.getZ().getColumn() >= 0 && objectCoordinate.getZ().getColumn() != Integer.MAX_VALUE)
+				unknownParameters.add(objectCoordinate.getZ());
 		}
 		
+		// reduce N and n in-place
+		// nr = n1  - N12 * inv(N22) * n2
+		// Nr = N11 - N12 * inv(N22) * N21
 		for (UnknownParameter<?> unknownParameterRow : unknownParameters) {
 			int rowN = unknownParameterRow.getColumn();
 			DenseVector n12 = new DenseVector(N22.numColumns());
@@ -1234,6 +1299,7 @@ public class BundleAdjustment {
 				n12.set(columnN22, dot);
 			}
 			
+			// n1 - N12 * inv(N22) * n2 --> n
 			n.add(rowN, -n12.dot(n2));
 
 			for (UnknownParameter<?> unknownParameterColumn : unknownParameters) {
@@ -1243,8 +1309,111 @@ public class BundleAdjustment {
 					int rowN12 = unknownExteriorOrientation.get(rowN22).getColumn();
 					dot += n12.get(rowN22) * N.get(columnN, rowN12);
 				}
+				// N11 - N12 * inv(N22) * N21 --> N
 				N.add(rowN, columnN, -dot);
 			}
+		}
+	}
+	
+	private void extractReducedParameters(NormalEquationSystem neq) {
+		for (Camera camera : this.cameras)
+			this.extractReducedParameters(neq, camera);
+	}
+	
+	private void extractReducedParameters(NormalEquationSystem neq, Camera camera) {
+		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
+		
+		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(13);
+		for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
+			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
+				continue;
+			unknownInteriorOrientation.add(unknownParameter);
+		}
+
+		for (Image image : camera)
+			this.extractReducedParameters(neq, image, unknownInteriorOrientation);
+	}
+	
+	public void extractReducedParameters(NormalEquationSystem neq, Image image, List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation) {
+		UpperSymmPackMatrix N = neq.getMatrix();
+		DenseVector n = neq.getVector();
+		
+		ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
+		List<UnknownParameter<ExteriorOrientation>> unknownExteriorOrientation = new ArrayList<UnknownParameter<ExteriorOrientation>>(6);
+		
+		for (UnknownParameter<ExteriorOrientation> unknownParameter : exteriorOrientation) {
+			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
+				continue;
+			unknownExteriorOrientation.add(unknownParameter);
+		}
+		
+		UpperSymmPackMatrix invN22 = new UpperSymmPackMatrix(unknownExteriorOrientation.size());
+		DenseVector dx2 = new DenseVector(invN22.numRows());
+		for (int rowN22 = 0; rowN22 < invN22.numRows(); rowN22++) {
+			UnknownParameter<ExteriorOrientation> unknownParameterRow = unknownExteriorOrientation.get(rowN22);
+			int rowN = unknownParameterRow.getColumn();
+			
+			for (int columnN22 = rowN22; columnN22 < invN22.numColumns(); columnN22++) {
+				UnknownParameter<ExteriorOrientation> unknownParameterColumn = unknownExteriorOrientation.get(columnN22);
+				int columnN = unknownParameterColumn.getColumn();
+				
+				invN22.set(rowN22, columnN22, N.get(rowN, columnN));
+			}
+			dx2.set(rowN22, n.get(rowN));
+		}
+		
+		List<UnknownParameter<?>> unknownParameters = new ArrayList<UnknownParameter<?>>();
+		unknownParameters.addAll(unknownInteriorOrientation);
+		
+		for (ImageCoordinate imageCoordinate : image) {
+			ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
+			if (objectCoordinate.getX().getColumn() >= 0 && objectCoordinate.getX().getColumn() != Integer.MAX_VALUE)
+				unknownParameters.add(objectCoordinate.getX());
+			if (objectCoordinate.getY().getColumn() >= 0 && objectCoordinate.getY().getColumn() != Integer.MAX_VALUE)
+				unknownParameters.add(objectCoordinate.getY());
+			if (objectCoordinate.getZ().getColumn() >= 0 && objectCoordinate.getZ().getColumn() != Integer.MAX_VALUE)
+				unknownParameters.add(objectCoordinate.getZ());
+		}
+
+//		for (UnknownParameter<?> unknownParameterRow : unknownParameters) {
+//			int rowN = unknownParameterRow.getColumn();
+//			DenseVector n21 = new DenseVector(invN22.numColumns());
+//			for (int columnN22 = 0; columnN22 < invN22.numColumns(); columnN22++) {
+//				double dot = 0;
+//				for (int rowN22 = 0; rowN22 < invN22.numRows(); rowN22++) {
+//					int columnN21 = unknownExteriorOrientation.get(rowN22).getColumn();
+//					dot += invN22.get(columnN22, rowN22) * N.get(rowN, columnN21);
+//				}
+//				n21.set(columnN22, dot);
+//			}
+//			dx2.add(-n.get(rowN), n21);
+//		}
+		
+		for (UnknownParameter<?> unknownParameterRow : unknownParameters) {
+		    int rowN = unknownParameterRow.getColumn();
+		    DenseVector n21 = new DenseVector(invN22.numColumns());
+		    
+		    for (int rowN22 = 0; rowN22 < invN22.numRows(); rowN22++) {
+		        int columnN21r = unknownExteriorOrientation.get(rowN22).getColumn();
+		        double valueNr = N.get(rowN, columnN21r);
+		        n21.add(rowN22, invN22.get(rowN22, rowN22) * valueNr);
+
+		        for (int columnN22 = rowN22 + 1; columnN22 < invN22.numColumns(); columnN22++) {
+		            int columnN21c  = unknownExteriorOrientation.get(columnN22).getColumn();
+		            double valueNc  = N.get(rowN, columnN21c);
+		            double invN22rc = invN22.get(rowN22, columnN22);
+		            
+		            n21.add(rowN22,    invN22rc * valueNc);
+		            n21.add(columnN22, invN22rc * valueNr);
+		        }
+		    }
+		    dx2.add(-n.get(rowN), n21);
+		}
+
+		for (int rowDx = 0; rowDx < dx2.size(); rowDx++) {
+			UnknownParameter<ExteriorOrientation> unknownParameterRow = unknownExteriorOrientation.get(rowDx);
+			int rowN = unknownParameterRow.getColumn();
+			n.set(rowN, dx2.get(rowDx));
 		}
 	}
 	
