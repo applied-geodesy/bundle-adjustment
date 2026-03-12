@@ -256,7 +256,7 @@ class PartialDerivativeFactory {
 		double par_xs_A2 = xs*(r4 - r04);
 		double par_xs_A3 = xs*(r6 - r06);
 		
-		double par_xs_B1 = r2 + xxs2;
+		double par_xs_B1 = xxs2 + r2;
 		double par_xs_B2 = xys2;
 		
 		double par_xs_C1 = xs;
@@ -288,7 +288,7 @@ class PartialDerivativeFactory {
 		double par_ys_A3 = ys*(r6 - r06);
 		
 		double par_ys_B1 = xys2;
-		double par_ys_B2 = r2 + yys2;
+		double par_ys_B2 = yys2 + r2;
 		
 		double par_ys_C1 = 0.0;
 		double par_ys_C2 = 0.0;
@@ -330,9 +330,9 @@ class PartialDerivativeFactory {
 		
 		// sum of coefficients
 		double par_corrX_xs = par_dRadX_xs + par_dTanX_xs + par_dAffX_xs + par_dDistX_xs;
-		double par_corrY_xs = par_dRadY_xs + par_dTanY_xs + par_dAffY_xs + par_dDistY_xs;
-		
 		double par_corrX_ys = par_dRadX_ys + par_dTanX_ys + par_dAffX_ys + par_dDistX_ys;
+		
+		double par_corrY_xs = par_dRadY_xs + par_dTanY_xs + par_dAffY_xs + par_dDistY_xs;
 		double par_corrY_ys = par_dRadY_ys + par_dTanY_ys + par_dAffY_ys + par_dDistY_ys;
 		
 		// stochastic model
@@ -589,145 +589,4 @@ class PartialDerivativeFactory {
 		
 		return new GaussMarkovEquations(A, P, w);
 	}
-	
-//	static Map<ParameterType, Double> getMisclosures(ObservationParameterGroup<?> observations) {
-//	Map<ParameterType, Double> values = Collections.emptyMap();
-//	
-//	if (observations instanceof ImageCoordinate) 
-//		values = getCollinearityEquationValues((ImageCoordinate)observations);			
-//	else if (observations instanceof ScaleBar)
-//		values = getDistanceValue((ScaleBar)observations);
-//	
-//	Map<ParameterType, Double> misclosures = new HashMap<ParameterType, Double>(observations.getNumberOfParameters());
-//	for (ObservationParameter<?> observation : observations) {
-//		ParameterType parameterType = observation.getParameterType();
-//		double value = values.get(parameterType);
-//		// estimate residuum (== observed - calculated)
-//		misclosures.put(parameterType, observation.getValue() - value);
-//	}
-//	
-//	return misclosures;
-//}
-//
-//private static Map<ParameterType, Double> getDistanceValue(ScaleBar scaleBar) {
-//	ObjectCoordinate objectCoordinateA = scaleBar.getObjectCoordinateA();
-//	ObjectCoordinate objectCoordinateB = scaleBar.getObjectCoordinateB();
-//
-//	double XA = objectCoordinateA.getX().getValue();
-//	double YA = objectCoordinateA.getY().getValue();
-//	double ZA = objectCoordinateA.getZ().getValue();
-//
-//	double XB = objectCoordinateB.getX().getValue();
-//	double YB = objectCoordinateB.getY().getValue();
-//	double ZB = objectCoordinateB.getZ().getValue();
-//
-//	double dX = XB - XA;
-//	double dY = YB - YA;
-//	double dZ = ZB - ZA;
-//
-//	return Map.ofEntries( 
-//			Map.entry(ParameterType.SCALE_BAR_LENGTH, Math.sqrt( dX*dX + dY*dY + dZ*dZ ))
-//	);
-//}
-//
-//private static Map<ParameterType, Double> getCollinearityEquationValues(ImageCoordinate imageCoordinate) {
-//	Image image = imageCoordinate.getReference();
-//	Camera camera = image.getReference();
-//	ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
-//
-//	double X = objectCoordinate.getX().getValue();
-//	double Y = objectCoordinate.getY().getValue();
-//	double Z = objectCoordinate.getZ().getValue();
-//
-//	double r0 = camera.getR0();
-//
-//	InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
-//	ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
-//
-//	double c  = interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE).getValue();
-//	double x0 = interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X).getValue();
-//	double y0 = interiorOrientation.get(ParameterType.PRINCIPAL_POINT_Y).getValue();
-//
-//	double A1 = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A1).getValue();
-//	double A2 = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).getValue();
-//	double A3 = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).getValue();
-//
-//	double B1 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).getValue();
-//	double B2 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).getValue();
-//
-//	double C1 = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).getValue();
-//	double C2 = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).getValue();
-//	
-//	double D1 = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).getValue();
-//	double D2 = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).getValue();
-//	double D3 = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).getValue();
-//
-//	double X0 = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).getValue();
-//	double Y0 = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).getValue();
-//	double Z0 = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).getValue();
-//
-//	double omega = exteriorOrientation.get(ParameterType.CAMERA_OMEGA).getValue();
-//	double phi   = exteriorOrientation.get(ParameterType.CAMERA_PHI).getValue();
-//	double kappa = exteriorOrientation.get(ParameterType.CAMERA_KAPPA).getValue();
-//
-//	double cosOmega = Math.cos(omega);
-//	double sinOmega = Math.sin(omega);
-//
-//	double cosPhi = Math.cos(phi);
-//	double sinPhi = Math.sin(phi);
-//
-//	double cosKappa = Math.cos(kappa);
-//	double sinKappa = Math.sin(kappa);
-//
-//	// Rotation (Luhmann (2023) Eq. 2.31, p. 62)
-//	double r11 =  cosPhi * cosKappa;
-//	double r12 = -cosPhi * sinKappa;
-//	double r13 =  sinPhi;
-//
-//	double r21 =  cosOmega * sinKappa + sinOmega * sinPhi * cosKappa;
-//	double r22 =  cosOmega * cosKappa - sinOmega * sinPhi * sinKappa;
-//	double r23 = -sinOmega * cosPhi;
-//
-//	double r31 = sinOmega * sinKappa - cosOmega * sinPhi * cosKappa;
-//	double r32 = sinOmega * cosKappa + cosOmega * sinPhi * sinKappa;
-//	double r33 = cosOmega * cosPhi;
-//
-//	double dX = X - X0;
-//	double dY = Y - Y0;
-//	double dZ = Z - Z0;
-//
-//	double kx = r11*dX + r21*dY + r31*dZ;
-//	double ky = r12*dX + r22*dY + r32*dZ;
-//	double N  = r13*dX + r23*dY + r33*dZ;
-//
-//	double kxN = kx/N;
-//	double kyN = ky/N;
-//
-//	double xs = -c*kxN;
-//	double ys = -c*kyN;
-//
-//	double r = Math.hypot(xs, ys);
-//	double dRad  = A1*r*r*r + A2*r*r*r*r*r + A3*r*r*r*r*r*r*r - (A1*r0*r0 + A2*r0*r0*r0*r0 + A3*r0*r0*r0*r0*r0*r0)*r;
-//
-//	double dRadX = xs * dRad/r;
-//	double dRadY = ys * dRad/r;
-//
-//	double dTanX = B1 * (r*r + 2.0*xs*xs) + 2.0 * B2 * xs * ys;
-//	double dTanY = B2 * (r*r + 2.0*ys*ys) + 2.0 * B1 * xs * ys;
-//
-//	double dAffX = C1*xs + C2*ys;
-//	double dAffY = 0;
-//
-//	double dDist = 1.0/N * (D1*r*r*r + D2*r*r*r*r*r + D3*r*r*r*r*r*r*r - (D1*r0*r0 + D2*r0*r0*r0*r0 + D3*r0*r0*r0*r0*r0*r0)*r);
-//	double dDistX = xs * dDist/r;
-//	double dDistY = ys * dDist/r;
-//	
-//	double deltaX = dRadX + dTanX + dAffX + dDistX;
-//	double deltaY = dRadY + dTanY + dAffY + dDistY;
-//	
-//	return Map.ofEntries( 
-//			Map.entry(ParameterType.IMAGE_COORDINATE_X, x0 + xs + deltaX),
-//			Map.entry(ParameterType.IMAGE_COORDINATE_Y, y0 + ys + deltaY) 
-//	);
-//}
 }
