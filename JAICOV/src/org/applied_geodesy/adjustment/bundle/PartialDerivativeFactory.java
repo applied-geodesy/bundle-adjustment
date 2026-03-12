@@ -196,7 +196,7 @@ class PartialDerivativeFactory {
 		double dX = X - X0;
 		double dY = Y - Y0;
 		double dZ = Z - Z0;
-
+		
 		double kx = r11*dX + r21*dY + r31*dZ;
 		double ky = r12*dX + r22*dY + r32*dZ;
 		double N  = r13*dX + r23*dY + r33*dZ;
@@ -264,7 +264,7 @@ class PartialDerivativeFactory {
 		
 		double par_xs_D1 = par_xs_A1 / N;
 		double par_xs_D2 = par_xs_A2 / N;
-		double par_xs_D3 = par_xs_A2 / N;
+		double par_xs_D3 = par_xs_A3 / N;
 		
 		// partial derivative: collinearity y-equation
 		double par_ys_X = -(r13*ys + c*r12) / N;
@@ -299,12 +299,12 @@ class PartialDerivativeFactory {
 		
 
 		// chain rule coefficients: dRad
-		double costRad = A1 + 2.0*A2*r2 + 3.0*A3*r4;
-		double par_dRadX_xs = xxs2 * costRad + dRad;
-		double par_dRadX_ys = xys2 * costRad;
+		double constRad = A1 + 2.0*A2*r2 + 3.0*A3*r4;
+		double par_dRadX_xs = xxs2 * constRad + dRad;
+		double par_dRadX_ys = xys2 * constRad;
 
-		double par_dRadY_xs = xys2 * costRad;
-		double par_dRadY_ys = yys2 * costRad + dRad;
+		double par_dRadY_xs = xys2 * constRad;
+		double par_dRadY_ys = yys2 * constRad + dRad;
 		
 		// chain rule coefficients: dTan
 		double par_dTanX_xs = 2.0*(3.0*B1*xs + B2*ys);
@@ -321,12 +321,28 @@ class PartialDerivativeFactory {
 		double par_dAffY_ys = 0.0;
 		
 		// chain rule coefficients: dDist
-		double costDist = (D1 + 2*D2*r2 + 3*D3*r4) / N;
-		double par_dDistX_xs = xxs2 * costDist + dDist;
-		double par_dDistX_ys = xys2 * costDist;
+		double par_N_X = r13;
+		double par_N_Y = r23;
+		double par_N_Z = r33;
 
-		double par_dDistY_xs = xys2 * costDist;
-		double par_dDistY_ys = yys2 * costDist + dDist;
+		double par_N_X0 = -r13;
+		double par_N_Y0 = -r23;
+		double par_N_Z0 = -r33;
+				
+		double par_N_omega = -r33 * dY + r23 * dZ; // TODO -cosOmega*cosPhi * dY - sinOmega*cosPhi * dZ;
+		double par_N_phi   =  cosPhi * dX + sinOmega * sinPhi * dY - cosOmega * sinPhi * dZ; // ky * sinKappa - kx * cosKappa
+		double par_N_kappa =  0.0;
+		
+		double constDistN  = -dDist / N;
+
+		double constDist = (D1 + 2*D2*r2 + 3*D3*r4) / N;
+		double par_dDistX_xs = xxs2 * constDist + dDist;
+		double par_dDistX_ys = xys2 * constDist;
+		double par_dDistX_N  = xs * constDistN;
+		
+		double par_dDistY_xs = xys2 * constDist;
+		double par_dDistY_ys = yys2 * constDist + dDist;
+		double par_dDistY_N  = ys * constDistN;
 		
 		// sum of coefficients
 		double par_corrX_xs = par_dRadX_xs + par_dTanX_xs + par_dAffX_xs + par_dDistX_xs;
@@ -372,22 +388,22 @@ class PartialDerivativeFactory {
 		column = objectCoordinate.getX().getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, par_xs_X * (1.0 + par_corrX_xs) + par_ys_X * par_corrX_ys);
-			A.set(1, column, par_ys_X * (1.0 + par_corrY_ys) + par_xs_X * par_corrY_xs);
+			A.set(0, column, par_xs_X * (1.0 + par_corrX_xs) + par_ys_X * par_corrX_ys + par_N_X * par_dDistX_N);
+			A.set(1, column, par_ys_X * (1.0 + par_corrY_ys) + par_xs_X * par_corrY_xs + par_N_X * par_dDistY_N);
 		}
 
 		column = objectCoordinate.getY().getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, par_xs_Y * (1.0 + par_corrX_xs) + par_ys_Y * par_corrX_ys);
-			A.set(1, column, par_ys_Y * (1.0 + par_corrY_ys) + par_xs_Y * par_corrY_xs);
+			A.set(0, column, par_xs_Y * (1.0 + par_corrX_xs) + par_ys_Y * par_corrX_ys + par_N_Y * par_dDistX_N);
+			A.set(1, column, par_ys_Y * (1.0 + par_corrY_ys) + par_xs_Y * par_corrY_xs + par_N_Y * par_dDistY_N);
 		}
 
 		column = objectCoordinate.getZ().getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, par_xs_Z * (1.0 + par_corrX_xs) + par_ys_Z * par_corrX_ys);
-			A.set(1, column, par_ys_Z * (1.0 + par_corrY_ys) + par_xs_Z * par_corrY_xs);
+			A.set(0, column, par_xs_Z * (1.0 + par_corrX_xs) + par_ys_Z * par_corrX_ys + par_N_Z * par_dDistX_N);
+			A.set(1, column, par_ys_Z * (1.0 + par_corrY_ys) + par_xs_Z * par_corrY_xs + par_N_Z * par_dDistY_N);
 		}
 
 
@@ -488,43 +504,43 @@ class PartialDerivativeFactory {
 		column = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, par_xs_X0 * (1.0 + par_corrX_xs) + par_ys_X0 * par_corrX_ys);
-			A.set(1, column, par_ys_X0 * (1.0 + par_corrY_ys) + par_xs_X0 * par_corrY_xs);
+			A.set(0, column, par_xs_X0 * (1.0 + par_corrX_xs) + par_ys_X0 * par_corrX_ys + par_N_X0 * par_dDistX_N);
+			A.set(1, column, par_ys_X0 * (1.0 + par_corrY_ys) + par_xs_X0 * par_corrY_xs + par_N_X0 * par_dDistY_N);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, par_xs_Y0 * (1.0 + par_corrX_xs) + par_ys_Y0 * par_corrX_ys);
-			A.set(1, column, par_ys_Y0 * (1.0 + par_corrY_ys) + par_xs_Y0 * par_corrY_xs);
+			A.set(0, column, par_xs_Y0 * (1.0 + par_corrX_xs) + par_ys_Y0 * par_corrX_ys + par_N_Y0 * par_dDistX_N);
+			A.set(1, column, par_ys_Y0 * (1.0 + par_corrY_ys) + par_xs_Y0 * par_corrY_xs + par_N_Y0 * par_dDistY_N);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, par_xs_Z0 * (1.0 + par_corrX_xs) + par_ys_Z0 * par_corrX_ys);
-			A.set(1, column, par_ys_Z0 * (1.0 + par_corrY_ys) + par_xs_Z0 * par_corrY_xs);
+			A.set(0, column, par_xs_Z0 * (1.0 + par_corrX_xs) + par_ys_Z0 * par_corrX_ys + par_N_Z0 * par_dDistX_N);
+			A.set(1, column, par_ys_Z0 * (1.0 + par_corrY_ys) + par_xs_Z0 * par_corrY_xs + par_N_Z0 * par_dDistY_N);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_OMEGA).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column); 
-			A.set(0, column, par_xs_omega * (1.0 + par_corrX_xs) + par_ys_omega * par_corrX_ys);
-			A.set(1, column, par_ys_omega * (1.0 + par_corrY_ys) + par_xs_omega * par_corrY_xs);
+			A.set(0, column, par_xs_omega * (1.0 + par_corrX_xs) + par_ys_omega * par_corrX_ys + par_N_omega * par_dDistX_N);
+			A.set(1, column, par_ys_omega * (1.0 + par_corrY_ys) + par_xs_omega * par_corrY_xs + par_N_omega * par_dDistY_N);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_PHI).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, par_xs_phi * (1.0 + par_corrX_xs) + par_ys_phi * par_corrX_ys);
-			A.set(1, column, par_ys_phi * (1.0 + par_corrY_ys) + par_xs_phi * par_corrY_xs);
+			A.set(0, column, par_xs_phi * (1.0 + par_corrX_xs) + par_ys_phi * par_corrX_ys + par_N_phi * par_dDistX_N);
+			A.set(1, column, par_ys_phi * (1.0 + par_corrY_ys) + par_xs_phi * par_corrY_xs + par_N_phi * par_dDistY_N);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_KAPPA).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, par_xs_kappa * (1.0 + par_corrX_xs) + par_ys_kappa * par_corrX_ys);
-			A.set(1, column, par_ys_kappa * (1.0 + par_corrY_ys) + par_xs_kappa * par_corrY_xs);
+			A.set(0, column, par_xs_kappa * (1.0 + par_corrX_xs) + par_ys_kappa * par_corrX_ys + par_N_kappa * par_dDistX_N);
+			A.set(1, column, par_ys_kappa * (1.0 + par_corrY_ys) + par_xs_kappa * par_corrY_xs + par_N_kappa * par_dDistY_N);
 		}
 		
 		return stackNormalEquationSystem(NEQ, neq, A, P, w, columns, diagonalWeighting);
