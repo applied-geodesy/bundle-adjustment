@@ -137,7 +137,10 @@ class PartialDerivativeFactory {
 		double Y = objectCoordinate.getY().getValue();
 		double Z = objectCoordinate.getZ().getValue();
 
-		double r0 = camera.getR0();
+		double r0  = camera.getR0();
+		double r02 = r0*r0;
+		double r04 = r02*r02;
+		double r06 = r04*r02;
 
 		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 		ExteriorOrientation exteriorOrientation = image.getExteriorOrientation();
@@ -197,32 +200,142 @@ class PartialDerivativeFactory {
 		double kx = r11*dX + r21*dY + r31*dZ;
 		double ky = r12*dX + r22*dY + r32*dZ;
 		double N  = r13*dX + r23*dY + r33*dZ;
-
+		
 		double kxN = kx/N;
 		double kyN = ky/N;
 
 		double xs = -c*kxN;
 		double ys = -c*kyN;
+		
+		double xxs2 = 2.0 * xs * xs;
+		double yys2 = 2.0 * ys * ys;
+		double xys2 = 2.0 * xs * ys;
 
-		double r = Math.hypot(xs, ys);
-		double dRad = A1*r*r*r + A2*r*r*r*r*r + A3*r*r*r*r*r*r*r - (A1*r0*r0 + A2*r0*r0*r0*r0 + A3*r0*r0*r0*r0*r0*r0)*r;
-
-		double dRadX = xs * dRad/r;
-		double dRadY = ys * dRad/r;
-
-		double dTanX = B1 * (r*r + 2.0*xs*xs) + 2.0 * B2 * xs * ys;
-		double dTanY = B2 * (r*r + 2.0*ys*ys) + 2.0 * B1 * xs * ys;
+		//double r  = Math.hypot(xs, ys);
+		double r2 = xs*xs + ys*ys;
+		double r4 = r2*r2;
+		double r6 = r4*r2;
+		
+		
+		double dRad  = A1*r2 + A2*r4 + A3*r6 - (A1*r02 + A2*r04 + A3*r06);
+		double dRadX = xs * dRad;
+		double dRadY = ys * dRad;
+		
+		double dTanX = B1 * (r2 + xxs2) + B2 * xys2;
+		double dTanY = B2 * (r2 + yys2) + B1 * xys2;
 
 		double dAffX = C1*xs + C2*ys;
-		double dAffY = 0;
+		double dAffY = 0.0;
 
-		double dDist = 1.0/N * (D1*r*r*r + D2*r*r*r*r*r + D3*r*r*r*r*r*r*r - (D1*r0*r0 + D2*r0*r0*r0*r0 + D3*r0*r0*r0*r0*r0*r0)*r);
-		double dDistX = xs * dDist/r;
-		double dDistY = ys * dDist/r;
+		double dDist  = (D1*r2 + D2*r4 + D3*r6 - (D1*r02 + D2*r04 + D3*r06)) / N;
+		double dDistX = xs * dDist;
+		double dDistY = ys * dDist;
 		
+		// total corrections
 		double deltaX = dRadX + dTanX + dAffX + dDistX;
 		double deltaY = dRadY + dTanY + dAffY + dDistY;
+		
+		// partial derivative: collinearity x-equation
+		double par_xs_X = -(r13*xs + c*r11) / N;
+		double par_xs_Y = -(r23*xs + c*r21) / N;
+		double par_xs_Z = -(r33*xs + c*r31) / N;
 
+		double par_xs_x0 = 1.0;
+		double par_xs_y0 = 0.0;
+		double par_xs_c = -kxN;
+
+		double par_xs_X0 = -par_xs_X; // -c/N2 * (r13*kx - r11*N);
+		double par_xs_Y0 = -par_xs_Y; // -c/N2 * (r23*kx - r21*N);
+		double par_xs_Z0 = -par_xs_Z; // -c/N2 * (r33*kx - r31*N);
+
+		double par_xs_omega = (xs * (r33*(Y - Y0) - r23*(Z - Z0)) + c * (r31*(Y - Y0) - r21*(Z - Z0))) / N;  // -c/N * ( kx/N * (r33*(Y - Y0) - r23*(Z - Z0)) - r31*(Y - Y0) + r21*(Z - Z0) )
+		double par_xs_phi   = (xs * (ky * sinKappa - kx * cosKappa) + c * N * cosKappa) / N;                 // -c/N * ( kx/N * (ky * sinKappa - kx * cosKappa) - N * cosKappa )
+		double par_xs_kappa = ys;                                                                            // -c/N * ky;
+
+		double par_xs_A1 = xs*(r2 - r02);
+		double par_xs_A2 = xs*(r4 - r04);
+		double par_xs_A3 = xs*(r6 - r06);
+		
+		double par_xs_B1 = r2 + xxs2;
+		double par_xs_B2 = xys2;
+		
+		double par_xs_C1 = xs;
+		double par_xs_C2 = ys;
+		
+		double par_xs_D1 = par_xs_A1 / N;
+		double par_xs_D2 = par_xs_A2 / N;
+		double par_xs_D3 = par_xs_A2 / N;
+		
+		// partial derivative: collinearity y-equation
+		double par_ys_X = -(r13*ys + c*r12) / N;
+		double par_ys_Y = -(r23*ys + c*r22) / N;
+		double par_ys_Z = -(r33*ys + c*r32) / N;
+
+		double par_ys_x0 = 0.0;
+		double par_ys_y0 = 1.0;
+		double par_ys_c = -kyN;
+
+		double par_ys_X0 = -par_ys_X; // -c/N2 * (r13*ky - r12*N)
+		double par_ys_Y0 = -par_ys_Y; // -c/N2 * (r23*ky - r22*N)
+		double par_ys_Z0 = -par_ys_Z; // -c/N2 * (r33*ky - r32*N)
+
+		double par_ys_omega = (ys * (r33*(Y - Y0) - r23*(Z - Z0)) + c * (r32*(Y - Y0) - r22*(Z - Z0))) / N; // -c/N * ( ky/N * (r33*(Y - Y0) - r23*(Z - Z0)) - r32*(Y - Y0) + r22*(Z - Z0) )
+		double par_ys_phi   = (ys * (ky * sinKappa - kx * cosKappa) - c * N * sinKappa) / N;                // -c/N * ( ky/N * (ky * sinKappa - kx * cosKappa) + N * sinKappa )
+		double par_ys_kappa = -xs;                                                                          //  c/N * kx
+		
+		double par_ys_A1 = ys*(r2 - r02);
+		double par_ys_A2 = ys*(r4 - r04);
+		double par_ys_A3 = ys*(r6 - r06);
+		
+		double par_ys_B1 = xys2;
+		double par_ys_B2 = r2 + yys2;
+		
+		double par_ys_C1 = 0.0;
+		double par_ys_C2 = 0.0;
+		
+		double par_ys_D1 = par_ys_A1 / N;
+		double par_ys_D2 = par_ys_A2 / N;
+		double par_ys_D3 = par_ys_A3 / N;
+		
+
+		// chain rule coefficients: dRad
+		double costRad = A1 + 2.0*A2*r2 + 3.0*A3*r4;
+		double par_dRadX_xs = xxs2 * costRad + dRad;
+		double par_dRadX_ys = xys2 * costRad;
+
+		double par_dRadY_xs = xys2 * costRad;
+		double par_dRadY_ys = yys2 * costRad + dRad;
+		
+		// chain rule coefficients: dTan
+		double par_dTanX_xs = 2.0*(3.0*B1*xs + B2*ys);
+		double par_dTanX_ys = 2.0*(    B1*ys + B2*xs);
+		
+		double par_dTanY_xs = 2.0*(    B2*xs + B1*ys);
+		double par_dTanY_ys = 2.0*(3.0*B2*ys + B1*xs);
+		
+		// chain rule coefficients: dAff
+		double par_dAffX_xs = C1;
+		double par_dAffX_ys = C2;
+		
+		double par_dAffY_xs = 0.0;
+		double par_dAffY_ys = 0.0;
+		
+		// chain rule coefficients: dDist
+		double costDist = (D1 + 2*D2*r2 + 3*D3*r4) / N;
+		double par_dDistX_xs = xxs2 * costDist + dDist;
+		double par_dDistX_ys = xys2 * costDist;
+
+		double par_dDistY_xs = xys2 * costDist;
+		double par_dDistY_ys = yys2 * costDist + dDist;
+		
+		// sum of coefficients
+		double par_corrX_xs = par_dRadX_xs + par_dTanX_xs + par_dAffX_xs + par_dDistX_xs;
+		double par_corrY_xs = par_dRadY_xs + par_dTanY_xs + par_dAffY_xs + par_dDistY_xs;
+		
+		double par_corrX_ys = par_dRadX_ys + par_dTanX_ys + par_dAffX_ys + par_dDistX_ys;
+		double par_corrY_ys = par_dRadY_ys + par_dTanY_ys + par_dAffY_ys + par_dDistY_ys;
+		
+		// stochastic model
 		double varianceX  = imageCoordinate.getX().getVariance();
 		double varianceY  = imageCoordinate.getY().getVariance();
 		double corrCoefXY = imageCoordinate.getCorrelationCoefficientXY();
@@ -259,22 +372,22 @@ class PartialDerivativeFactory {
 		column = objectCoordinate.getX().getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, -(c*1.0/(r*r*r)*((r*r*r)*r11+dDist*(r*r)*r11+dRad*(r*r)*r11-kxN*(r*r*r)*r13+C1*(r*r*r)*r11-C2*cosPhi*(r*r*r)*sinKappa-C1*kxN*(r*r*r)*r13-C2*kyN*(r*r*r)*r13-dDist*kxN*(r*r)*r13*2.0-dRad*kxN*(r*r)*r13-(c*c)*dDist*(kxN*kxN)*r11+(c*c)*dDist*(kxN*kxN*kxN)*r13-(c*c)*dRad*(kxN*kxN)*r11+(c*c)*dRad*(kxN*kxN*kxN)*r13+B1*c*(kxN*kxN)*(r*r*r)*r13*6.0+B1*c*(kyN*kyN)*(r*r*r)*r13*2.0+(c*c)*dDist*kxN*(kyN*kyN)*r13+(c*c)*dRad*kxN*(kyN*kyN)*r13+A1*(c*c)*(kxN*kxN)*(r*r*r)*r11*3.0-A1*(c*c)*(kxN*kxN*kxN)*(r*r*r)*r13*3.0+A2*(c*c)*(kxN*kxN)*(r*r*r*r*r)*r11*5.0-A2*(c*c)*(kxN*kxN*kxN)*(r*r*r*r*r)*r13*5.0+A3*(c*c)*(kxN*kxN)*(r*r*r*r*r*r*r)*r11*7.0-A3*(c*c)*(kxN*kxN*kxN)*(r*r*r*r*r*r*r)*r13*7.0-B1*c*kxN*(r*r*r)*r11*6.0-B2*c*kyN*(r*r*r)*r11*2.0+B2*c*cosPhi*kxN*(r*r*r)*sinKappa*2.0+B1*c*cosPhi*kyN*(r*r*r)*sinKappa*2.0+B2*c*kxN*kyN*(r*r*r)*r13*4.0+(c*c)*cosPhi*dDist*kxN*kyN*sinKappa+(c*c)*cosPhi*dRad*kxN*kyN*sinKappa-A1*(c*c)*kxN*(kyN*kyN)*(r*r*r)*r13*3.0-A2*(c*c)*kxN*(kyN*kyN)*(r*r*r*r*r)*r13*5.0-A3*(c*c)*kxN*(kyN*kyN)*(r*r*r*r*r*r*r)*r13*7.0-A1*(c*c)*(kxN*kxN)*r*(r0*r0)*r11+A1*(c*c)*(kxN*kxN*kxN)*r*(r0*r0)*r13-A2*(c*c)*(kxN*kxN)*r*(r0*r0*r0*r0)*r11+A2*(c*c)*(kxN*kxN*kxN)*r*(r0*r0*r0*r0)*r13-A3*(c*c)*(kxN*kxN)*r*(r0*r0*r0*r0*r0*r0)*r11+A3*(c*c)*(kxN*kxN*kxN)*r*(r0*r0*r0*r0*r0*r0)*r13+A1*(c*c)*kxN*(kyN*kyN)*r*(r0*r0)*r13+A2*(c*c)*kxN*(kyN*kyN)*r*(r0*r0*r0*r0)*r13+A3*(c*c)*kxN*(kyN*kyN)*r*(r0*r0*r0*r0*r0*r0)*r13-A1*(c*c)*cosPhi*kxN*kyN*(r*r*r)*sinKappa*3.0-A2*(c*c)*cosPhi*kxN*kyN*(r*r*r*r*r)*sinKappa*5.0-A3*(c*c)*cosPhi*kxN*kyN*(r*r*r*r*r*r*r)*sinKappa*7.0+A1*(c*c)*cosPhi*kxN*kyN*r*(r0*r0)*sinKappa+A2*(c*c)*cosPhi*kxN*kyN*r*(r0*r0*r0*r0)*sinKappa+A3*(c*c)*cosPhi*kxN*kyN*r*(r0*r0*r0*r0*r0*r0)*sinKappa))/N+1.0/(N*N)*(c*c*c)*kxN*1.0/(r*r)*(-kxN*r11+(kxN*kxN)*r13+(kyN*kyN)*r13+cosPhi*kyN*sinKappa)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0)));
-			A.set(1, column, -(c*1.0/(r*r*r)*(-cosPhi*(r*r*r)*sinKappa-kyN*(r*r*r)*r13-cosPhi*dDist*(r*r)*sinKappa-cosPhi*dRad*(r*r)*sinKappa-dDist*kyN*(r*r)*r13*2.0-dRad*kyN*(r*r)*r13+(c*c)*dDist*(kyN*kyN*kyN)*r13+(c*c)*dRad*(kyN*kyN*kyN)*r13+B2*c*(kxN*kxN)*(r*r*r)*r13*2.0+B2*c*(kyN*kyN)*(r*r*r)*r13*6.0+(c*c)*cosPhi*dDist*(kyN*kyN)*sinKappa+(c*c)*cosPhi*dRad*(kyN*kyN)*sinKappa+(c*c)*dDist*(kxN*kxN)*kyN*r13+(c*c)*dRad*(kxN*kxN)*kyN*r13-A1*(c*c)*(kyN*kyN*kyN)*(r*r*r)*r13*3.0-A2*(c*c)*(kyN*kyN*kyN)*(r*r*r*r*r)*r13*5.0-A3*(c*c)*(kyN*kyN*kyN)*(r*r*r*r*r*r*r)*r13*7.0-B2*c*kxN*(r*r*r)*r11*2.0-B1*c*kyN*(r*r*r)*r11*2.0-(c*c)*dDist*kxN*kyN*r11-(c*c)*dRad*kxN*kyN*r11+B1*c*cosPhi*kxN*(r*r*r)*sinKappa*2.0+B2*c*cosPhi*kyN*(r*r*r)*sinKappa*6.0+B1*c*kxN*kyN*(r*r*r)*r13*4.0+A1*(c*c)*kxN*kyN*(r*r*r)*r11*3.0+A2*(c*c)*kxN*kyN*(r*r*r*r*r)*r11*5.0+A3*(c*c)*kxN*kyN*(r*r*r*r*r*r*r)*r11*7.0-A1*(c*c)*cosPhi*(kyN*kyN)*(r*r*r)*sinKappa*3.0-A2*(c*c)*cosPhi*(kyN*kyN)*(r*r*r*r*r)*sinKappa*5.0-A3*(c*c)*cosPhi*(kyN*kyN)*(r*r*r*r*r*r*r)*sinKappa*7.0-A1*(c*c)*(kxN*kxN)*kyN*(r*r*r)*r13*3.0-A2*(c*c)*(kxN*kxN)*kyN*(r*r*r*r*r)*r13*5.0-A3*(c*c)*(kxN*kxN)*kyN*(r*r*r*r*r*r*r)*r13*7.0+A1*(c*c)*(kyN*kyN*kyN)*r*(r0*r0)*r13+A2*(c*c)*(kyN*kyN*kyN)*r*(r0*r0*r0*r0)*r13+A3*(c*c)*(kyN*kyN*kyN)*r*(r0*r0*r0*r0*r0*r0)*r13+A1*(c*c)*cosPhi*(kyN*kyN)*r*(r0*r0)*sinKappa+A2*(c*c)*cosPhi*(kyN*kyN)*r*(r0*r0*r0*r0)*sinKappa+A3*(c*c)*cosPhi*(kyN*kyN)*r*(r0*r0*r0*r0*r0*r0)*sinKappa+A1*(c*c)*(kxN*kxN)*kyN*r*(r0*r0)*r13+A2*(c*c)*(kxN*kxN)*kyN*r*(r0*r0*r0*r0)*r13+A3*(c*c)*(kxN*kxN)*kyN*r*(r0*r0*r0*r0*r0*r0)*r13-A1*(c*c)*kxN*kyN*r*(r0*r0)*r11-A2*(c*c)*kxN*kyN*r*(r0*r0*r0*r0)*r11-A3*(c*c)*kxN*kyN*r*(r0*r0*r0*r0*r0*r0)*r11))/N+1.0/(N*N)*(c*c*c)*kyN*1.0/(r*r)*(-kxN*r11+(kxN*kxN)*r13+(kyN*kyN)*r13+cosPhi*kyN*sinKappa)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0)));
+			A.set(0, column, par_xs_X * (1.0 + par_corrX_xs) + par_ys_X * par_corrX_ys);
+			A.set(1, column, par_ys_X * (1.0 + par_corrY_ys) + par_xs_X * par_corrY_xs);
 		}
 
 		column = objectCoordinate.getY().getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, -(c*(cosOmega*sinKappa+cosKappa*r13*sinOmega))/N+(cosPhi*sinOmega*xs)/N+(B1*(c*c)*(cosPhi*(kxN*kxN)*sinOmega*3.0+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa*3.0+cosKappa*kxN*r13*sinOmega*3.0-kyN*r13*sinOmega*sinKappa)*2.0)/N-(C1*c*(cosOmega*sinKappa+cosKappa*r13*sinOmega))/N-(C2*c*(cosOmega*cosKappa-r13*sinOmega*sinKappa))/N+(C1*cosPhi*sinOmega*xs)/N+(C2*cosPhi*sinOmega*ys)/N+(B2*(c*c)*kxN*(cosOmega*cosKappa-r13*sinOmega*sinKappa)*2.0)/N+(B2*(c*c)*kyN*(cosOmega*sinKappa+cosKappa*r13*sinOmega)*2.0)/N-(c*dDist*(cosOmega*sinKappa+cosKappa*r13*sinOmega))/(N*r)-(c*dRad*(cosOmega*sinKappa+cosKappa*r13*sinOmega))/(N*r)+1.0/(N*N)*(c*c)*1.0/(r*r)*xs*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa)+((c*c*c)*dDist*kxN*1.0/(r*r*r)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+((c*c*c)*dRad*kxN*1.0/(r*r*r)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+(cosPhi*dRad*sinOmega*xs)/(N*r)+((c*c)*1.0/(r*r)*xs*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+(B2*(c*c)*cosPhi*kxN*kyN*sinOmega*4.0)/N-(c*cosPhi*dDist*kxN*sinOmega*2.0)/(N*r));
-			A.set(1, column, -(c*(cosOmega*cosKappa-r13*sinOmega*sinKappa))/N+(cosPhi*sinOmega*ys)/N+(B2*(c*c)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega*3.0+cosOmega*cosKappa*kyN*3.0+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa*3.0)*2.0)/N+(B1*(c*c)*kxN*(cosOmega*cosKappa-r13*sinOmega*sinKappa)*2.0)/N+(B1*(c*c)*kyN*(cosOmega*sinKappa+cosKappa*r13*sinOmega)*2.0)/N-(c*dDist*(cosOmega*cosKappa-r13*sinOmega*sinKappa))/(N*r)-(c*dRad*(cosOmega*cosKappa-r13*sinOmega*sinKappa))/(N*r)+1.0/(N*N)*(c*c)*1.0/(r*r)*ys*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa)+((c*c*c)*dDist*kyN*1.0/(r*r*r)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+((c*c*c)*dRad*kyN*1.0/(r*r*r)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+(cosPhi*dRad*sinOmega*ys)/(N*r)+((c*c)*1.0/(r*r)*ys*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+(B1*(c*c)*cosPhi*kxN*kyN*sinOmega*4.0)/N-(c*cosPhi*dDist*kyN*sinOmega*2.0)/(N*r));
+			A.set(0, column, par_xs_Y * (1.0 + par_corrX_xs) + par_ys_Y * par_corrX_ys);
+			A.set(1, column, par_ys_Y * (1.0 + par_corrY_ys) + par_xs_Y * par_corrY_xs);
 		}
 
 		column = objectCoordinate.getZ().getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, -(c*(sinOmega*sinKappa-cosOmega*cosKappa*r13))/N-(B1*(c*c)*((kxN*kxN)*r33*3.0+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa*3.0+cosOmega*cosKappa*kxN*r13*3.0-cosOmega*kyN*r13*sinKappa)*2.0)/N+(c*kxN*r33)/N-(C1*c*(sinOmega*sinKappa-cosOmega*cosKappa*r13))/N-(C2*c*(cosKappa*sinOmega+cosOmega*r13*sinKappa))/N+(C1*c*kxN*r33)/N+(C2*c*kyN*r33)/N+(B2*(c*c)*kxN*(cosKappa*sinOmega+cosOmega*r13*sinKappa)*2.0)/N+(B2*(c*c)*kyN*(sinOmega*sinKappa-cosOmega*cosKappa*r13)*2.0)/N-(c*dDist*(sinOmega*sinKappa-cosOmega*cosKappa*r13))/(N*r)-(c*dRad*(sinOmega*sinKappa-cosOmega*cosKappa*r13))/(N*r)-((c*c)*1.0/(r*r)*xs*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0)))/N-1.0/(N*N)*(c*c)*1.0/(r*r)*xs*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))-(B2*(c*c)*kxN*kyN*r33*4.0)/N-((c*c*c)*dDist*kxN*1.0/(r*r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa))/N-((c*c*c)*dRad*kxN*1.0/(r*r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa))/N+(c*dDist*kxN*r33*2.0)/(N*r)+(c*dRad*kxN*r33)/(N*r));
-			A.set(1, column, -(c*(cosKappa*sinOmega+cosOmega*r13*sinKappa))/N-(B2*(c*c)*((kxN*kxN)*r33+(kyN*kyN)*r33*3.0-cosKappa*kyN*sinOmega*3.0-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa*3.0)*2.0)/N+(c*kyN*r33)/N+(B1*(c*c)*kxN*(cosKappa*sinOmega+cosOmega*r13*sinKappa)*2.0)/N+(B1*(c*c)*kyN*(sinOmega*sinKappa-cosOmega*cosKappa*r13)*2.0)/N-(c*dDist*(cosKappa*sinOmega+cosOmega*r13*sinKappa))/(N*r)-(c*dRad*(cosKappa*sinOmega+cosOmega*r13*sinKappa))/(N*r)-((c*c)*1.0/(r*r)*ys*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0)))/N-1.0/(N*N)*(c*c)*1.0/(r*r)*ys*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))-(B1*(c*c)*kxN*kyN*r33*4.0)/N-((c*c*c)*dDist*kyN*1.0/(r*r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa))/N-((c*c*c)*dRad*kyN*1.0/(r*r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa))/N+(c*dDist*kyN*r33*2.0)/(N*r)+(c*dRad*kyN*r33)/(N*r));
+			A.set(0, column, par_xs_Z * (1.0 + par_corrX_xs) + par_ys_Z * par_corrX_ys);
+			A.set(1, column, par_ys_Z * (1.0 + par_corrY_ys) + par_xs_Z * par_corrY_xs);
 		}
 
 
@@ -282,92 +395,92 @@ class PartialDerivativeFactory {
 		column = interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, 1.0);
-			A.set(1, column, 0.0);
+			A.set(0, column, par_xs_x0);
+			A.set(1, column, par_ys_x0);
 		}
 
 		column = interiorOrientation.get(ParameterType.PRINCIPAL_POINT_Y).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, 0.0);
-			A.set(1, column, 1.0);
+			A.set(0, column, par_xs_y0);
+			A.set(1, column, par_ys_y0);
 		}
 
 		column = interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, -kxN-C1*kxN-C2*kyN-(dDist*kxN)/r-(dRad*kxN)/r+B1*c*((kxN*kxN)*3.0+kyN*kyN)*2.0+B2*c*kxN*kyN*4.0+c*1.0/(r*r)*xs*(kxN*kxN+kyN*kyN)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))+(c*c)*dDist*kxN*1.0/(r*r*r)*(kxN*kxN+kyN*kyN)+(c*c)*dRad*kxN*1.0/(r*r*r)*(kxN*kxN+kyN*kyN)+(c*1.0/(r*r)*xs*(kxN*kxN+kyN*kyN)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0)))/N);
-			A.set(1, column, -kyN-(dDist*kyN)/r-(dRad*kyN)/r+B2*c*(kxN*kxN+(kyN*kyN)*3.0)*2.0+B1*c*kxN*kyN*4.0+c*1.0/(r*r)*ys*(kxN*kxN+kyN*kyN)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))+(c*c)*dDist*kyN*1.0/(r*r*r)*(kxN*kxN+kyN*kyN)+(c*c)*dRad*kyN*1.0/(r*r*r)*(kxN*kxN+kyN*kyN)+(c*1.0/(r*r)*ys*(kxN*kxN+kyN*kyN)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0)))/N);
+			A.set(0, column, par_xs_c);
+			A.set(1, column, par_ys_c);
 		}
 
 		column = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A1).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, xs*(r*r - r0*r0));
-			A.set(1, column, ys*(r*r - r0*r0));
+			A.set(0, column, par_xs_A1);
+			A.set(1, column, par_ys_A1);
 		}
 
 		column = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, xs*(r*r*r*r - r0*r0*r0*r0));
-			A.set(1, column, ys*(r*r*r*r - r0*r0*r0*r0));
+			A.set(0, column, par_xs_A2);
+			A.set(1, column, par_ys_A2);
 		}
 
 		column = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, xs*(r*r*r*r*r*r - r0*r0*r0*r0*r0*r0));
-			A.set(1, column, ys*(r*r*r*r*r*r - r0*r0*r0*r0*r0*r0));
+			A.set(0, column, par_xs_A3);
+			A.set(1, column, par_ys_A3);
 		}
 
 		column = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, r*r + 2.0*xs*xs); //c*c*(3.0*kxN*kxN + kyN*kyN);
-			A.set(1, column, 2.0*xs*ys);
+			A.set(0, column, par_xs_B1); 
+			A.set(1, column, par_ys_B1);
 		}
 
 		column = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, 2.0*xs*ys);
-			A.set(1, column, r*r + 2.0*ys*ys); //c*c*(3.0*kyN*kyN + kxN*kxN);
+			A.set(0, column, par_xs_B2);
+			A.set(1, column, par_ys_B2);
 		}
 
 		column = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, xs);
-			A.set(1, column, 0.0);
+			A.set(0, column, par_xs_C1);
+			A.set(1, column, par_ys_C1);
 		}
 
 		column = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, ys);
-			A.set(1, column, 0.0);
+			A.set(0, column, par_xs_C2);
+			A.set(1, column, par_ys_C2);
 		}
 
 		column = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, xs/N*(r*r - r0*r0)); 
-			A.set(1, column, ys/N*(r*r - r0*r0));
+			A.set(0, column, par_xs_D1); 
+			A.set(1, column, par_ys_D1);
 		}
 		
 		column = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, xs/N*(r*r*r*r - r0*r0*r0*r0));
-			A.set(1, column, ys/N*(r*r*r*r - r0*r0*r0*r0));
+			A.set(0, column, par_xs_D2);
+			A.set(1, column, par_ys_D2);
 		}
 		
 		column = interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, xs/N*(r*r*r*r*r*r - r0*r0*r0*r0*r0*r0));
-			A.set(1, column, ys/N*(r*r*r*r*r*r - r0*r0*r0*r0*r0*r0));
+			A.set(0, column, par_xs_D3);
+			A.set(1, column, par_ys_D3);
 		}
 
 		
@@ -375,43 +488,43 @@ class PartialDerivativeFactory {
 		column = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_X).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, (1.0/(r*r*r)*(c*(r*r*r)*r11+(r*r*r)*r13*xs+C1*c*(r*r*r)*r11+C2*c*(r*r*r)*r12+C1*(r*r*r)*r13*xs+C2*(r*r*r)*r13*ys+c*dDist*(r*r)*r11+c*dRad*(r*r)*r11+dRad*(r*r)*r13*xs-(c*c*c)*dDist*(kxN*kxN)*r11+(c*c*c)*dDist*(kxN*kxN*kxN)*r13-(c*c*c)*dRad*(kxN*kxN)*r11+(c*c*c)*dRad*(kxN*kxN*kxN)*r13-B1*(c*c)*kxN*(r*r*r)*r11*6.0-B2*(c*c)*kyN*(r*r*r)*r11*2.0+(c*c*c)*dDist*kxN*(kyN*kyN)*r13+(c*c*c)*dRad*kxN*(kyN*kyN)*r13+B1*(c*c)*(kxN*kxN)*(r*r*r)*r13*6.0+B1*(c*c)*(kyN*kyN)*(r*r*r)*r13*2.0-c*dDist*kxN*(r*r)*r13*2.0+(c*c*c)*cosPhi*dDist*kxN*kyN*sinKappa+(c*c*c)*cosPhi*dRad*kxN*kyN*sinKappa+B2*(c*c)*cosPhi*kxN*(r*r*r)*sinKappa*2.0+B1*(c*c)*cosPhi*kyN*(r*r*r)*sinKappa*2.0+B2*(c*c)*kxN*kyN*(r*r*r)*r13*4.0-A1*(c*c)*kxN*(r*r*r)*r11*xs*3.0-A2*(c*c)*kxN*(r*r*r*r*r)*r11*xs*5.0-A3*(c*c)*kxN*(r*r*r*r*r*r*r)*r11*xs*7.0+A1*(c*c)*(kxN*kxN)*(r*r*r)*r13*xs*3.0+A2*(c*c)*(kxN*kxN)*(r*r*r*r*r)*r13*xs*5.0+A3*(c*c)*(kxN*kxN)*(r*r*r*r*r*r*r)*r13*xs*7.0+A1*(c*c)*(kyN*kyN)*(r*r*r)*r13*xs*3.0+A2*(c*c)*(kyN*kyN)*(r*r*r*r*r)*r13*xs*5.0+A3*(c*c)*(kyN*kyN)*(r*r*r*r*r*r*r)*r13*xs*7.0-A1*(c*c)*(kxN*kxN)*r*(r0*r0)*r13*xs-A2*(c*c)*(kxN*kxN)*r*(r0*r0*r0*r0)*r13*xs-A3*(c*c)*(kxN*kxN)*r*(r0*r0*r0*r0*r0*r0)*r13*xs-A1*(c*c)*(kyN*kyN)*r*(r0*r0)*r13*xs-A2*(c*c)*(kyN*kyN)*r*(r0*r0*r0*r0)*r13*xs-A3*(c*c)*(kyN*kyN)*r*(r0*r0*r0*r0*r0*r0)*r13*xs+A1*(c*c)*cosPhi*kyN*(r*r*r)*sinKappa*xs*3.0+A2*(c*c)*cosPhi*kyN*(r*r*r*r*r)*sinKappa*xs*5.0+A3*(c*c)*cosPhi*kyN*(r*r*r*r*r*r*r)*sinKappa*xs*7.0+A1*(c*c)*kxN*r*(r0*r0)*r11*xs+A2*(c*c)*kxN*r*(r0*r0*r0*r0)*r11*xs+A3*(c*c)*kxN*r*(r0*r0*r0*r0*r0*r0)*r11*xs-A1*(c*c)*cosPhi*kyN*r*(r0*r0)*sinKappa*xs-A2*(c*c)*cosPhi*kyN*r*(r0*r0*r0*r0)*sinKappa*xs-A3*(c*c)*cosPhi*kyN*r*(r0*r0*r0*r0*r0*r0)*sinKappa*xs))/N+1.0/(N*N)*(c*c)*1.0/(r*r)*xs*(-kxN*r11+(kxN*kxN)*r13+(kyN*kyN)*r13+cosPhi*kyN*sinKappa)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0)));
-			A.set(1, column, (1.0/(r*r*r)*(c*(r*r*r)*r12+(r*r*r)*r13*ys+c*dDist*(r*r)*r12+c*dRad*(r*r)*r12+dRad*(r*r)*r13*ys+(c*c*c)*dDist*(kyN*kyN*kyN)*r13+(c*c*c)*dRad*(kyN*kyN*kyN)*r13-B2*(c*c)*kxN*(r*r*r)*r11*2.0-B1*(c*c)*kyN*(r*r*r)*r11*2.0+(c*c*c)*cosPhi*dDist*(kyN*kyN)*sinKappa+(c*c*c)*cosPhi*dRad*(kyN*kyN)*sinKappa+(c*c*c)*dDist*(kxN*kxN)*kyN*r13+(c*c*c)*dRad*(kxN*kxN)*kyN*r13+B2*(c*c)*(kxN*kxN)*(r*r*r)*r13*2.0+B2*(c*c)*(kyN*kyN)*(r*r*r)*r13*6.0-(c*c*c)*dDist*kxN*kyN*r11-(c*c*c)*dRad*kxN*kyN*r11-c*dDist*kyN*(r*r)*r13*2.0+B1*(c*c)*cosPhi*kxN*(r*r*r)*sinKappa*2.0+B2*(c*c)*cosPhi*kyN*(r*r*r)*sinKappa*6.0+B1*(c*c)*kxN*kyN*(r*r*r)*r13*4.0-A1*(c*c)*kxN*(r*r*r)*r11*ys*3.0-A2*(c*c)*kxN*(r*r*r*r*r)*r11*ys*5.0-A3*(c*c)*kxN*(r*r*r*r*r*r*r)*r11*ys*7.0+A1*(c*c)*(kxN*kxN)*(r*r*r)*r13*ys*3.0+A2*(c*c)*(kxN*kxN)*(r*r*r*r*r)*r13*ys*5.0+A3*(c*c)*(kxN*kxN)*(r*r*r*r*r*r*r)*r13*ys*7.0+A1*(c*c)*(kyN*kyN)*(r*r*r)*r13*ys*3.0+A2*(c*c)*(kyN*kyN)*(r*r*r*r*r)*r13*ys*5.0+A3*(c*c)*(kyN*kyN)*(r*r*r*r*r*r*r)*r13*ys*7.0-A1*(c*c)*(kxN*kxN)*r*(r0*r0)*r13*ys-A2*(c*c)*(kxN*kxN)*r*(r0*r0*r0*r0)*r13*ys-A3*(c*c)*(kxN*kxN)*r*(r0*r0*r0*r0*r0*r0)*r13*ys-A1*(c*c)*(kyN*kyN)*r*(r0*r0)*r13*ys-A2*(c*c)*(kyN*kyN)*r*(r0*r0*r0*r0)*r13*ys-A3*(c*c)*(kyN*kyN)*r*(r0*r0*r0*r0*r0*r0)*r13*ys+A1*(c*c)*cosPhi*kyN*(r*r*r)*sinKappa*ys*3.0+A2*(c*c)*cosPhi*kyN*(r*r*r*r*r)*sinKappa*ys*5.0+A3*(c*c)*cosPhi*kyN*(r*r*r*r*r*r*r)*sinKappa*ys*7.0+A1*(c*c)*kxN*r*(r0*r0)*r11*ys+A2*(c*c)*kxN*r*(r0*r0*r0*r0)*r11*ys+A3*(c*c)*kxN*r*(r0*r0*r0*r0*r0*r0)*r11*ys-A1*(c*c)*cosPhi*kyN*r*(r0*r0)*sinKappa*ys-A2*(c*c)*cosPhi*kyN*r*(r0*r0*r0*r0)*sinKappa*ys-A3*(c*c)*cosPhi*kyN*r*(r0*r0*r0*r0*r0*r0)*sinKappa*ys))/N+1.0/(N*N)*(c*c)*1.0/(r*r)*ys*(-kxN*r11+(kxN*kxN)*r13+(kyN*kyN)*r13+cosPhi*kyN*sinKappa)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0)));
+			A.set(0, column, par_xs_X0 * (1.0 + par_corrX_xs) + par_ys_X0 * par_corrX_ys);
+			A.set(1, column, par_ys_X0 * (1.0 + par_corrY_ys) + par_xs_X0 * par_corrY_xs);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Y).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, (c*(cosOmega*sinKappa+cosKappa*r13*sinOmega))/N-(B1*(c*c)*(cosPhi*(kxN*kxN)*sinOmega*3.0+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa*3.0+cosKappa*kxN*r13*sinOmega*3.0-kyN*r13*sinOmega*sinKappa)*2.0)/N+(C1*c*(cosOmega*sinKappa+cosKappa*r13*sinOmega))/N+(C2*c*(cosOmega*cosKappa-r13*sinOmega*sinKappa))/N+(c*cosPhi*kxN*sinOmega)/N-(B2*(c*c)*kxN*(cosOmega*cosKappa-r13*sinOmega*sinKappa)*2.0)/N-(B2*(c*c)*kyN*(cosOmega*sinKappa+cosKappa*r13*sinOmega)*2.0)/N+(c*dDist*(cosOmega*sinKappa+cosKappa*r13*sinOmega))/(N*r)+(c*dRad*(cosOmega*sinKappa+cosKappa*r13*sinOmega))/(N*r)-((c*c*c)*dDist*kxN*1.0/(r*r*r)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N-((c*c*c)*dRad*kxN*1.0/(r*r*r)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+((c*c*c)*kxN*1.0/(r*r)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+(C1*c*cosPhi*kxN*sinOmega)/N+(C2*c*cosPhi*kyN*sinOmega)/N+1.0/(N*N)*(c*c*c)*kxN*1.0/(r*r)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa)-(B2*(c*c)*cosPhi*kxN*kyN*sinOmega*4.0)/N+(c*cosPhi*dDist*kxN*sinOmega*2.0)/(N*r)+(c*cosPhi*dRad*kxN*sinOmega)/(N*r));
-			A.set(1, column, (c*(cosOmega*cosKappa-r13*sinOmega*sinKappa))/N-(B2*(c*c)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega*3.0+cosOmega*cosKappa*kyN*3.0+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa*3.0)*2.0)/N+(c*cosPhi*kyN*sinOmega)/N-(B1*(c*c)*kxN*(cosOmega*cosKappa-r13*sinOmega*sinKappa)*2.0)/N-(B1*(c*c)*kyN*(cosOmega*sinKappa+cosKappa*r13*sinOmega)*2.0)/N+(c*dDist*(cosOmega*cosKappa-r13*sinOmega*sinKappa))/(N*r)+(c*dRad*(cosOmega*cosKappa-r13*sinOmega*sinKappa))/(N*r)-((c*c*c)*dDist*kyN*1.0/(r*r*r)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N-((c*c*c)*dRad*kyN*1.0/(r*r*r)*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+((c*c*c)*kyN*1.0/(r*r)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa))/N+1.0/(N*N)*(c*c*c)*kyN*1.0/(r*r)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))*(cosPhi*(kxN*kxN)*sinOmega+cosPhi*(kyN*kyN)*sinOmega+cosOmega*cosKappa*kyN+cosOmega*kxN*sinKappa+cosKappa*kxN*r13*sinOmega-kyN*r13*sinOmega*sinKappa)-(B1*(c*c)*cosPhi*kxN*kyN*sinOmega*4.0)/N+(c*cosPhi*dDist*kyN*sinOmega*2.0)/(N*r)+(c*cosPhi*dRad*kyN*sinOmega)/(N*r));
+			A.set(0, column, par_xs_Y0 * (1.0 + par_corrX_xs) + par_ys_Y0 * par_corrX_ys);
+			A.set(1, column, par_ys_Y0 * (1.0 + par_corrY_ys) + par_xs_Y0 * par_corrY_xs);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_COORDINATE_Z).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, (c*(sinOmega*sinKappa-cosOmega*cosKappa*r13))/N+(r33*xs)/N+(B1*(c*c)*((kxN*kxN)*r33*3.0+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa*3.0+cosOmega*cosKappa*kxN*r13*3.0-cosOmega*kyN*r13*sinKappa)*2.0)/N+(C1*r33*xs)/N+(C2*r33*ys)/N+(C1*c*(sinOmega*sinKappa-cosOmega*cosKappa*r13))/N+(C2*c*(cosKappa*sinOmega+cosOmega*r13*sinKappa))/N+(dRad*r33*xs)/(N*r)-(B2*(c*c)*kxN*(cosKappa*sinOmega+cosOmega*r13*sinKappa)*2.0)/N-(B2*(c*c)*kyN*(sinOmega*sinKappa-cosOmega*cosKappa*r13)*2.0)/N+(c*dDist*(sinOmega*sinKappa-cosOmega*cosKappa*r13))/(N*r)+(c*dRad*(sinOmega*sinKappa-cosOmega*cosKappa*r13))/(N*r)-((c*c*c)*kxN*1.0/(r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0)))/N-1.0/(N*N)*(c*c*c)*kxN*1.0/(r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))+(B2*(c*c)*kxN*kyN*r33*4.0)/N+((c*c*c)*dDist*kxN*1.0/(r*r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa))/N+((c*c*c)*dRad*kxN*1.0/(r*r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa))/N-(c*dDist*kxN*r33*2.0)/(N*r));
-			A.set(1, column, (c*(cosKappa*sinOmega+cosOmega*r13*sinKappa))/N+(r33*ys)/N+(B2*(c*c)*((kxN*kxN)*r33+(kyN*kyN)*r33*3.0-cosKappa*kyN*sinOmega*3.0-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa*3.0)*2.0)/N+(dRad*r33*ys)/(N*r)-(B1*(c*c)*kxN*(cosKappa*sinOmega+cosOmega*r13*sinKappa)*2.0)/N-(B1*(c*c)*kyN*(sinOmega*sinKappa-cosOmega*cosKappa*r13)*2.0)/N+(c*dDist*(cosKappa*sinOmega+cosOmega*r13*sinKappa))/(N*r)+(c*dRad*(cosKappa*sinOmega+cosOmega*r13*sinKappa))/(N*r)-((c*c*c)*kyN*1.0/(r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0)))/N-1.0/(N*N)*(c*c*c)*kyN*1.0/(r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))+(B1*(c*c)*kxN*kyN*r33*4.0)/N+((c*c*c)*dDist*kyN*1.0/(r*r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa))/N+((c*c*c)*dRad*kyN*1.0/(r*r*r)*((kxN*kxN)*r33+(kyN*kyN)*r33-cosKappa*kyN*sinOmega-kxN*sinOmega*sinKappa+cosOmega*cosKappa*kxN*r13-cosOmega*kyN*r13*sinKappa))/N-(c*dDist*kyN*r33*2.0)/(N*r));
+			A.set(0, column, par_xs_Z0 * (1.0 + par_corrX_xs) + par_ys_Z0 * par_corrX_ys);
+			A.set(1, column, par_ys_Z0 * (1.0 + par_corrY_ys) + par_xs_Z0 * par_corrY_xs);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_OMEGA).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column); 
-			A.set(0, column, -(c*(cosOmega*dZ*sinKappa-dY*sinOmega*sinKappa+cosKappa*dZ*r13*sinOmega+cosOmega*cosKappa*dY*r13))/N+(xs*(dY*r33+cosPhi*dZ*sinOmega))/N+(B1*(c*c)*(dY*(kxN*kxN)*r33*3.0+dY*(kyN*kyN)*r33+cosOmega*dZ*kxN*sinKappa*3.0-cosKappa*dY*kyN*sinOmega-dY*kxN*sinOmega*sinKappa*3.0+cosPhi*dZ*(kxN*kxN)*sinOmega*3.0+cosPhi*dZ*(kyN*kyN)*sinOmega+cosOmega*cosKappa*dZ*kyN+cosOmega*cosKappa*dY*kxN*r13*3.0-cosOmega*dY*kyN*r13*sinKappa+cosKappa*dZ*kxN*r13*sinOmega*3.0-dZ*kyN*r13*sinOmega*sinKappa)*2.0)/N-(C1*c*(cosOmega*dZ*sinKappa-dY*sinOmega*sinKappa+cosKappa*dZ*r13*sinOmega+cosOmega*cosKappa*dY*r13))/N+(C2*c*(-cosOmega*cosKappa*dZ+cosKappa*dY*sinOmega+cosOmega*dY*r13*sinKappa+dZ*r13*sinOmega*sinKappa))/N+(C1*xs*(dY*r33+cosPhi*dZ*sinOmega))/N+(C2*ys*(dY*r33+cosPhi*dZ*sinOmega))/N-(B2*(c*c)*kxN*(-cosOmega*cosKappa*dZ+cosKappa*dY*sinOmega+cosOmega*dY*r13*sinKappa+dZ*r13*sinOmega*sinKappa)*2.0)/N+(B2*(c*c)*kyN*(cosOmega*dZ*sinKappa-dY*sinOmega*sinKappa+cosKappa*dZ*r13*sinOmega+cosOmega*cosKappa*dY*r13)*2.0)/N-(c*dDist*(cosOmega*dZ*sinKappa-dY*sinOmega*sinKappa+cosKappa*dZ*r13*sinOmega+cosOmega*cosKappa*dY*r13))/(N*r)-(c*dRad*(cosOmega*dZ*sinKappa-dY*sinOmega*sinKappa+cosKappa*dZ*r13*sinOmega+cosOmega*cosKappa*dY*r13))/(N*r)+(dRad*xs*(dY*r33+cosPhi*dZ*sinOmega))/(N*r)+(B2*(c*c)*kxN*kyN*(dY*r33+cosPhi*dZ*sinOmega)*4.0)/N-(c*dDist*kxN*(dY*r33+cosPhi*dZ*sinOmega)*2.0)/(N*r)+((c*c)*1.0/(r*r)*xs*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))*(dY*(kxN*kxN)*r33+dY*(kyN*kyN)*r33+cosOmega*dZ*kxN*sinKappa-cosKappa*dY*kyN*sinOmega-dY*kxN*sinOmega*sinKappa+cosPhi*dZ*(kxN*kxN)*sinOmega+cosPhi*dZ*(kyN*kyN)*sinOmega+cosOmega*cosKappa*dZ*kyN+cosOmega*cosKappa*dY*kxN*r13-cosOmega*dY*kyN*r13*sinKappa+cosKappa*dZ*kxN*r13*sinOmega-dZ*kyN*r13*sinOmega*sinKappa))/N+1.0/(N*N)*(c*c)*1.0/(r*r)*xs*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))*(dY*(kxN*kxN)*r33+dY*(kyN*kyN)*r33+cosOmega*dZ*kxN*sinKappa-cosKappa*dY*kyN*sinOmega-dY*kxN*sinOmega*sinKappa+cosPhi*dZ*(kxN*kxN)*sinOmega+cosPhi*dZ*(kyN*kyN)*sinOmega+cosOmega*cosKappa*dZ*kyN+cosOmega*cosKappa*dY*kxN*r13-cosOmega*dY*kyN*r13*sinKappa+cosKappa*dZ*kxN*r13*sinOmega-dZ*kyN*r13*sinOmega*sinKappa)+((c*c*c)*dDist*kxN*1.0/(r*r*r)*(dY*(kxN*kxN)*r33+dY*(kyN*kyN)*r33+cosOmega*dZ*kxN*sinKappa-cosKappa*dY*kyN*sinOmega-dY*kxN*sinOmega*sinKappa+cosPhi*dZ*(kxN*kxN)*sinOmega+cosPhi*dZ*(kyN*kyN)*sinOmega+cosOmega*cosKappa*dZ*kyN+cosOmega*cosKappa*dY*kxN*r13-cosOmega*dY*kyN*r13*sinKappa+cosKappa*dZ*kxN*r13*sinOmega-dZ*kyN*r13*sinOmega*sinKappa))/N+((c*c*c)*dRad*kxN*1.0/(r*r*r)*(dY*(kxN*kxN)*r33+dY*(kyN*kyN)*r33+cosOmega*dZ*kxN*sinKappa-cosKappa*dY*kyN*sinOmega-dY*kxN*sinOmega*sinKappa+cosPhi*dZ*(kxN*kxN)*sinOmega+cosPhi*dZ*(kyN*kyN)*sinOmega+cosOmega*cosKappa*dZ*kyN+cosOmega*cosKappa*dY*kxN*r13-cosOmega*dY*kyN*r13*sinKappa+cosKappa*dZ*kxN*r13*sinOmega-dZ*kyN*r13*sinOmega*sinKappa))/N);
-			A.set(1, column, -(c*(cosOmega*cosKappa*dZ-cosKappa*dY*sinOmega-cosOmega*dY*r13*sinKappa-dZ*r13*sinOmega*sinKappa))/N+(ys*(dY*r33+cosPhi*dZ*sinOmega))/N+(B2*(c*c)*(dY*(kxN*kxN)*r33+dY*(kyN*kyN)*r33*3.0+cosOmega*dZ*kxN*sinKappa-cosKappa*dY*kyN*sinOmega*3.0-dY*kxN*sinOmega*sinKappa+cosPhi*dZ*(kxN*kxN)*sinOmega+cosPhi*dZ*(kyN*kyN)*sinOmega*3.0+cosOmega*cosKappa*dZ*kyN*3.0+cosOmega*cosKappa*dY*kxN*r13-cosOmega*dY*kyN*r13*sinKappa*3.0+cosKappa*dZ*kxN*r13*sinOmega-dZ*kyN*r13*sinOmega*sinKappa*3.0)*2.0)/N-(B1*(c*c)*kxN*(-cosOmega*cosKappa*dZ+cosKappa*dY*sinOmega+cosOmega*dY*r13*sinKappa+dZ*r13*sinOmega*sinKappa)*2.0)/N+(B1*(c*c)*kyN*(cosOmega*dZ*sinKappa-dY*sinOmega*sinKappa+cosKappa*dZ*r13*sinOmega+cosOmega*cosKappa*dY*r13)*2.0)/N+(c*dDist*(-cosOmega*cosKappa*dZ+cosKappa*dY*sinOmega+cosOmega*dY*r13*sinKappa+dZ*r13*sinOmega*sinKappa))/(N*r)+(c*dRad*(-cosOmega*cosKappa*dZ+cosKappa*dY*sinOmega+cosOmega*dY*r13*sinKappa+dZ*r13*sinOmega*sinKappa))/(N*r)+(dRad*ys*(dY*r33+cosPhi*dZ*sinOmega))/(N*r)+(B1*(c*c)*kxN*kyN*(dY*r33+cosPhi*dZ*sinOmega)*4.0)/N-(c*dDist*kyN*(dY*r33+cosPhi*dZ*sinOmega)*2.0)/(N*r)+((c*c)*1.0/(r*r)*ys*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))*(dY*(kxN*kxN)*r33+dY*(kyN*kyN)*r33+cosOmega*dZ*kxN*sinKappa-cosKappa*dY*kyN*sinOmega-dY*kxN*sinOmega*sinKappa+cosPhi*dZ*(kxN*kxN)*sinOmega+cosPhi*dZ*(kyN*kyN)*sinOmega+cosOmega*cosKappa*dZ*kyN+cosOmega*cosKappa*dY*kxN*r13-cosOmega*dY*kyN*r13*sinKappa+cosKappa*dZ*kxN*r13*sinOmega-dZ*kyN*r13*sinOmega*sinKappa))/N+1.0/(N*N)*(c*c)*1.0/(r*r)*ys*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))*(dY*(kxN*kxN)*r33+dY*(kyN*kyN)*r33+cosOmega*dZ*kxN*sinKappa-cosKappa*dY*kyN*sinOmega-dY*kxN*sinOmega*sinKappa+cosPhi*dZ*(kxN*kxN)*sinOmega+cosPhi*dZ*(kyN*kyN)*sinOmega+cosOmega*cosKappa*dZ*kyN+cosOmega*cosKappa*dY*kxN*r13-cosOmega*dY*kyN*r13*sinKappa+cosKappa*dZ*kxN*r13*sinOmega-dZ*kyN*r13*sinOmega*sinKappa)+((c*c*c)*dDist*kyN*1.0/(r*r*r)*(dY*(kxN*kxN)*r33+dY*(kyN*kyN)*r33+cosOmega*dZ*kxN*sinKappa-cosKappa*dY*kyN*sinOmega-dY*kxN*sinOmega*sinKappa+cosPhi*dZ*(kxN*kxN)*sinOmega+cosPhi*dZ*(kyN*kyN)*sinOmega+cosOmega*cosKappa*dZ*kyN+cosOmega*cosKappa*dY*kxN*r13-cosOmega*dY*kyN*r13*sinKappa+cosKappa*dZ*kxN*r13*sinOmega-dZ*kyN*r13*sinOmega*sinKappa))/N+((c*c*c)*dRad*kyN*1.0/(r*r*r)*(dY*(kxN*kxN)*r33+dY*(kyN*kyN)*r33+cosOmega*dZ*kxN*sinKappa-cosKappa*dY*kyN*sinOmega-dY*kxN*sinOmega*sinKappa+cosPhi*dZ*(kxN*kxN)*sinOmega+cosPhi*dZ*(kyN*kyN)*sinOmega+cosOmega*cosKappa*dZ*kyN+cosOmega*cosKappa*dY*kxN*r13-cosOmega*dY*kyN*r13*sinKappa+cosKappa*dZ*kxN*r13*sinOmega-dZ*kyN*r13*sinOmega*sinKappa))/N);
+			A.set(0, column, par_xs_omega * (1.0 + par_corrX_xs) + par_ys_omega * par_corrX_ys);
+			A.set(1, column, par_ys_omega * (1.0 + par_corrY_ys) + par_xs_omega * par_corrY_xs);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_PHI).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, -B1*(((c*c)*(kxN*kxN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*6.0)/N+((c*c)*(kyN*kyN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*kxN*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega)*6.0)/N-((c*c)*kyN*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa)*2.0)/N)+(c*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega))/N-(C2*c*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa))/N+(c*kxN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega))/N+(C1*c*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega))/N-(c*dDist*kxN*1.0/(r*r*r)*(((c*c)*(kxN*kxN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*(kyN*kyN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*kxN*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega)*2.0)/N-((c*c)*kyN*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa)*2.0)/N))/2.0-(c*dRad*kxN*1.0/(r*r*r)*(((c*c)*(kxN*kxN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*(kyN*kyN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*kxN*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega)*2.0)/N-((c*c)*kyN*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa)*2.0)/N))/2.0-(B2*(c*c)*kyN*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega)*2.0)/N+(B2*(c*c)*kxN*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa)*2.0)/N+(c*dDist*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega))/(N*r)+(c*dRad*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega))/(N*r)+(C1*c*kxN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega))/N+(C2*c*kyN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega))/N+((c*c*c)*kxN*1.0/(r*r)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))*(cosPhi*dX*(kxN*kxN)+cosPhi*dX*(kyN*kyN)+cosKappa*dX*kxN*r13+cosOmega*dZ*kxN*r11-dY*kxN*r11*sinOmega-dX*kyN*r13*sinKappa-dY*kyN*r12*sinOmega-dZ*kyN*r33*sinKappa-cosOmega*dZ*(kxN*kxN)*r13-cosOmega*dZ*(kyN*kyN)*r13+dY*(kxN*kxN)*r13*sinOmega+dY*(kyN*kyN)*r13*sinOmega))/N+1.0/(N*N)*(c*c*c)*kxN*1.0/(r*r)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))*(cosPhi*dX*(kxN*kxN)+cosPhi*dX*(kyN*kyN)+cosKappa*dX*kxN*r13+cosOmega*dZ*kxN*r11-dY*kxN*r11*sinOmega-dX*kyN*r13*sinKappa-dY*kyN*r12*sinOmega-dZ*kyN*r33*sinKappa-cosOmega*dZ*(kxN*kxN)*r13-cosOmega*dZ*(kyN*kyN)*r13+dY*(kxN*kxN)*r13*sinOmega+dY*(kyN*kyN)*r13*sinOmega)-(B2*(c*c)*kxN*kyN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*4.0)/N+(c*dDist*kxN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/(N*r)+(c*dRad*kxN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega))/(N*r));
-			A.set(1, column, -B2*(((c*c)*(kxN*kxN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*(kyN*kyN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*6.0)/N+((c*c)*kxN*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega)*2.0)/N-((c*c)*kyN*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa)*6.0)/N)-(c*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa))/N+(c*kyN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega))/N-(c*dDist*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa))/(N*r)-(c*dRad*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa))/(N*r)-(c*dDist*kyN*1.0/(r*r*r)*(((c*c)*(kxN*kxN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*(kyN*kyN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*kxN*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega)*2.0)/N-((c*c)*kyN*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa)*2.0)/N))/2.0-(c*dRad*kyN*1.0/(r*r*r)*(((c*c)*(kxN*kxN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*(kyN*kyN)*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/N+((c*c)*kxN*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega)*2.0)/N-((c*c)*kyN*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa)*2.0)/N))/2.0-(B1*(c*c)*kyN*(cosKappa*dX*r13+cosOmega*dZ*r11-dY*r11*sinOmega)*2.0)/N+(B1*(c*c)*kxN*(dX*r13*sinKappa+dY*r12*sinOmega+dZ*r33*sinKappa)*2.0)/N+((c*c*c)*kyN*1.0/(r*r)*(A1*(r*r)*3.0-A1*(r0*r0)+A2*(r*r*r*r)*5.0-A2*(r0*r0*r0*r0)+A3*(r*r*r*r*r*r)*7.0-A3*(r0*r0*r0*r0*r0*r0))*(cosPhi*dX*(kxN*kxN)+cosPhi*dX*(kyN*kyN)+cosKappa*dX*kxN*r13+cosOmega*dZ*kxN*r11-dY*kxN*r11*sinOmega-dX*kyN*r13*sinKappa-dY*kyN*r12*sinOmega-dZ*kyN*r33*sinKappa-cosOmega*dZ*(kxN*kxN)*r13-cosOmega*dZ*(kyN*kyN)*r13+dY*(kxN*kxN)*r13*sinOmega+dY*(kyN*kyN)*r13*sinOmega))/N+1.0/(N*N)*(c*c*c)*kyN*1.0/(r*r)*(D1*(r*r)*3.0-D1*(r0*r0)+D2*(r*r*r*r)*5.0-D2*(r0*r0*r0*r0)+D3*(r*r*r*r*r*r)*7.0-D3*(r0*r0*r0*r0*r0*r0))*(cosPhi*dX*(kxN*kxN)+cosPhi*dX*(kyN*kyN)+cosKappa*dX*kxN*r13+cosOmega*dZ*kxN*r11-dY*kxN*r11*sinOmega-dX*kyN*r13*sinKappa-dY*kyN*r12*sinOmega-dZ*kyN*r33*sinKappa-cosOmega*dZ*(kxN*kxN)*r13-cosOmega*dZ*(kyN*kyN)*r13+dY*(kxN*kxN)*r13*sinOmega+dY*(kyN*kyN)*r13*sinOmega)-(B1*(c*c)*kxN*kyN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*4.0)/N+(c*dDist*kyN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega)*2.0)/(N*r)+(c*dRad*kyN*(cosPhi*dX-cosOmega*dZ*r13+dY*r13*sinOmega))/(N*r));
+			A.set(0, column, par_xs_phi * (1.0 + par_corrX_xs) + par_ys_phi * par_corrX_ys);
+			A.set(1, column, par_ys_phi * (1.0 + par_corrY_ys) + par_xs_phi * par_corrY_xs);
 		}
 
 		column = exteriorOrientation.get(ParameterType.CAMERA_KAPPA).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, ys+C1*ys-B2*(c*c)*(kxN*kxN)*2.0+B2*(c*c)*(kyN*kyN)*2.0+C2*c*kxN+(ys*(dDist+dRad))/r+B1*(c*c)*kxN*kyN*4.0);
-			A.set(1, column, c*(kxN-B1*c*(kxN*kxN)*2.0+B1*c*(kyN*kyN)*2.0-B2*c*kxN*kyN*4.0)+(c*kxN*(dDist+dRad))/r);
+			A.set(0, column, par_xs_kappa * (1.0 + par_corrX_xs) + par_ys_kappa * par_corrX_ys);
+			A.set(1, column, par_ys_kappa * (1.0 + par_corrY_ys) + par_xs_kappa * par_corrY_xs);
 		}
 		
 		return stackNormalEquationSystem(NEQ, neq, A, P, w, columns, diagonalWeighting);
