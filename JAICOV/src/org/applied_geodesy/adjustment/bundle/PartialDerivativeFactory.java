@@ -235,7 +235,8 @@ class PartialDerivativeFactory {
 		double deltaX = dRadX + dTanX + dAffX + dDistX;
 		double deltaY = dRadY + dTanY + dAffY + dDistY;
 		
-		// partial derivative: collinearity x-equation
+		// partial derivatives
+		// collinearity x-equation
 		double par_xs_X = -(r13*xs + c*r11) / N;
 		double par_xs_Y = -(r23*xs + c*r21) / N;
 		double par_xs_Z = -(r33*xs + c*r31) / N;
@@ -266,7 +267,8 @@ class PartialDerivativeFactory {
 		double par_xs_D2 = par_xs_A2 / N;
 		double par_xs_D3 = par_xs_A3 / N;
 		
-		// partial derivative: collinearity y-equation
+		// partial derivatives
+		// collinearity y-equation
 		double par_ys_X = -(r13*ys + c*r12) / N;
 		double par_ys_Y = -(r23*ys + c*r22) / N;
 		double par_ys_Z = -(r33*ys + c*r32) / N;
@@ -329,26 +331,45 @@ class PartialDerivativeFactory {
 		double par_N_Y0 = -r23;
 		double par_N_Z0 = -r33;
 				
-		double par_N_omega = -r33 * dY + r23 * dZ; // TODO -cosOmega*cosPhi * dY - sinOmega*cosPhi * dZ;
-		double par_N_phi   =  cosPhi * dX + sinOmega * sinPhi * dY - cosOmega * sinPhi * dZ; // ky * sinKappa - kx * cosKappa
+		double par_N_omega = -r33 * dY + r23 * dZ;              // -cosOmega*cosPhi * dY - sinOmega*cosPhi * dZ;
+		double par_N_phi   =  kx * cosKappa - ky * sinKappa;    //  cosPhi*dX + sinOmega*sinPhi*dY - cosOmega*sinPhi*dZ
 		double par_N_kappa =  0.0;
 		
-		double constDistN  = -dDist / N;
-
 		double constDist = (D1 + 2*D2*r2 + 3*D3*r4) / N;
 		double par_dDistX_xs = xxs2 * constDist + dDist;
 		double par_dDistX_ys = xys2 * constDist;
-		double par_dDistX_N  = xs * constDistN;
+		double par_dDistX_N  = -dDistX / N; 
 		
 		double par_dDistY_xs = xys2 * constDist;
 		double par_dDistY_ys = yys2 * constDist + dDist;
-		double par_dDistY_N  = ys * constDistN;
+		double par_dDistY_N  = -dDistY / N; 
 		
-		// sum of coefficients
+		// partial derivatives dRad:
+		//  dRadX: par_dRadX_xs * par_xs_<PARAM>  +  par_dRadX_ys * par_ys_<PARAM>
+		//  dRadY: par_dRadY_xs * par_xs_<PARAM>  +  par_dRadY_ys * par_ys_<PARAM>
+		
+		// partial derivatives dTan:
+		//  dTanX: par_dTanX_xs * par_xs_<PARAM>  +  par_dTanX_ys * par_ys_<PARAM>
+		//  dTanY: par_dTanY_xs * par_xs_<PARAM>  +  par_dTanY_ys * par_ys_<PARAM>
+		
+		// partial derivatives dAff:
+		//  dAffX: par_dAffX_xs * par_xs_<PARAM>  +  par_dAffX_ys * par_ys_<PARAM>
+		//  dAffY: par_dAffY_xs * par_xs_<PARAM>  +  par_dAffY_ys * par_ys_<PARAM>
+		
+		// partial derivatives dDist:
+		//  dDistX: par_dDistX_xs * par_xs_<PARAM>  +  par_dDistX_ys * par_ys_<PARAM>  +  par_dDistX_N * par_N_<PARAM>;
+		//  dDistY: par_dDistY_xs * par_xs_<PARAM>  +  par_dDistY_ys * par_ys_<PARAM>  +  par_dDistY_N * par_N_<PARAM>;
+		
+		// sum of coefficients in x-equation 
+		// depending on par_xs_<PARAM> 
 		double par_corrX_xs = par_dRadX_xs + par_dTanX_xs + par_dAffX_xs + par_dDistX_xs;
+		// depending on par_ys_<PARAM>
 		double par_corrX_ys = par_dRadX_ys + par_dTanX_ys + par_dAffX_ys + par_dDistX_ys;
 		
+		// sum of coefficients in y-equation 
+		// depending on par_xs_<PARAM> 
 		double par_corrY_xs = par_dRadY_xs + par_dTanY_xs + par_dAffY_xs + par_dDistY_xs;
+		// depending on par_ys_<PARAM> 
 		double par_corrY_ys = par_dRadY_ys + par_dTanY_ys + par_dAffY_ys + par_dDistY_ys;
 		
 		// stochastic model
