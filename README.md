@@ -36,7 +36,7 @@ point cloud. For such specific applications, this tiny bundle adjustment library
   + Principle point `x0`, `y0`
   + Principle distance `c`
   + Radial-symmetric distortion `A1`, `A2`, `A3`
-  + Tangential distortion `B1`, `B2`
+  + Tangential distortion `B1`, `B2` with symmetric coefficients `B3`, `B4`
   + Affinity and shear `C1`, `C2`
   + Distance-dependent distortion `D1`, `D2`, `D3`
 - Consideration of correlation between planar coordinate components of observed image point
