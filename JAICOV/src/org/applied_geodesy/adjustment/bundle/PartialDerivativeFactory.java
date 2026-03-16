@@ -249,7 +249,7 @@ class PartialDerivativeFactory {
 		double par_xs_Y0 = -par_xs_Y; // -c/N2 * (r23*kx - r21*N);
 		double par_xs_Z0 = -par_xs_Z; // -c/N2 * (r33*kx - r31*N);
 
-		double par_xs_omega = (xs * (r33*(Y - Y0) - r23*(Z - Z0)) + c * (r31*(Y - Y0) - r21*(Z - Z0))) / N;  // -c/N * ( kx/N * (r33*(Y - Y0) - r23*(Z - Z0)) - r31*(Y - Y0) + r21*(Z - Z0) )
+		double par_xs_omega = (xs * (r33*dY - r23*dZ) + c * (r31*dY - r21*dZ)) / N;                          // -c/N * ( kx/N * (r33*(Y - Y0) - r23*(Z - Z0)) - r31*(Y - Y0) + r21*(Z - Z0) )
 		double par_xs_phi   = (xs * (ky * sinKappa - kx * cosKappa) + c * N * cosKappa) / N;                 // -c/N * ( kx/N * (ky * sinKappa - kx * cosKappa) - N * cosKappa )
 		double par_xs_kappa = ys;                                                                            // -c/N * ky;
 
@@ -281,7 +281,7 @@ class PartialDerivativeFactory {
 		double par_ys_Y0 = -par_ys_Y; // -c/N2 * (r23*ky - r22*N)
 		double par_ys_Z0 = -par_ys_Z; // -c/N2 * (r33*ky - r32*N)
 
-		double par_ys_omega = (ys * (r33*(Y - Y0) - r23*(Z - Z0)) + c * (r32*(Y - Y0) - r22*(Z - Z0))) / N; // -c/N * ( ky/N * (r33*(Y - Y0) - r23*(Z - Z0)) - r32*(Y - Y0) + r22*(Z - Z0) )
+		double par_ys_omega = (ys * (r33*dY - r23*dZ) + c * (r32*dY - r22*dZ)) / N;                         // -c/N * ( ky/N * (r33*(Y - Y0) - r23*(Z - Z0)) - r32*(Y - Y0) + r22*(Z - Z0) )
 		double par_ys_phi   = (ys * (ky * sinKappa - kx * cosKappa) - c * N * sinKappa) / N;                // -c/N * ( ky/N * (ky * sinKappa - kx * cosKappa) + N * sinKappa )
 		double par_ys_kappa = -xs;                                                                          //  c/N * kx
 		
