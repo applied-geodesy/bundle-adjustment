@@ -446,8 +446,8 @@ class PartialDerivativeFactory {
 		column = interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE).getColumn();
 		if (column >= 0 && column != Integer.MAX_VALUE) {
 			columns.add(column);
-			A.set(0, column, par_xs_c);
-			A.set(1, column, par_ys_c);
+			A.set(0, column, par_xs_c * (1.0 + par_corrX_xs) + par_ys_c * par_corrX_ys); 
+			A.set(1, column, par_ys_c * (1.0 + par_corrY_ys) + par_xs_c * par_corrY_xs); 
 		}
 
 		column = interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A1).getColumn();
