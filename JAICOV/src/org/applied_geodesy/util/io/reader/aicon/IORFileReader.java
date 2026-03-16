@@ -130,6 +130,12 @@ public class IORFileReader extends SourceFileReader<Camera> {
 				this.interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).setValue(A2);
 				this.interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).setColumn(-1);
 				
+				// symmetric part of radial-asymmetric distortion not supported by AICON yet
+				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).setValue(0.0);
+				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).setColumn(-1);
+				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).setValue(0.0);
+				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).setColumn(-1);
+				
 				// distance-dependent distortion not supported by AICON yet
 				this.interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).setValue(0.0);
 				this.interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).setColumn(-1);

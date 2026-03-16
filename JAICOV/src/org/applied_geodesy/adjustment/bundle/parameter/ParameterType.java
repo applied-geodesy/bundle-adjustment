@@ -41,6 +41,10 @@ public enum ParameterType {
 	TANGENTIAL_DISTORTION_B1(131),
 	/** Radial-asymmetrische und tangentiale Verzeichnung B2 **/
 	TANGENTIAL_DISTORTION_B2(132),
+	/** Radial-asymmetrische und tangentiale Verzeichnung B3 **/
+	TANGENTIAL_DISTORTION_B3(134),
+	/** Radial-asymmetrische und tangentiale Verzeichnung B4 **/
+	TANGENTIAL_DISTORTION_B4(135),
 	
 	/** Affinitaet und Scherung C1 **/
 	AFFINITY_AND_SHEAR_C1(141),

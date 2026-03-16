@@ -307,6 +307,12 @@ public class AICONReportFileReader extends SourceFileReader<BundleAdjustment> {
 		double value  = Double.parseDouble(columns[1].trim());
 		boolean fixed = columns[2].trim().matches("\\w+"); // columns[2].equalsIgnoreCase("fest");
 
+		// symmetric part of radial-asymmetric distortion not supported by AICON yet
+		this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B3).setValue(0.0);
+		this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B3).setColumn(Integer.MAX_VALUE);
+		this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B4).setValue(0.0);
+		this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B4).setColumn(Integer.MAX_VALUE);
+		
 		// distance-dependent distortion not supported by AICON yet
 		this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D1).setValue(0.0);
 		this.camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D1).setColumn(Integer.MAX_VALUE);
@@ -347,6 +353,14 @@ public class AICONReportFileReader extends SourceFileReader<BundleAdjustment> {
 		case "B2":
 			this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B2).setValue(value);
 			this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B2).setColumn(fixed ? Integer.MAX_VALUE : -1);
+			break;
+		case "B3":
+			this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B3).setValue(value);
+			this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B3).setColumn(fixed ? Integer.MAX_VALUE : -1);
+			break;
+		case "B4":
+			this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B4).setValue(value);
+			this.camera.getInteriorOrientation().get(ParameterType.TANGENTIAL_DISTORTION_B4).setColumn(fixed ? Integer.MAX_VALUE : -1);
 			break;
 		case "C1":
 			this.camera.getInteriorOrientation().get(ParameterType.AFFINITY_AND_SHEAR_C1).setValue(value);

@@ -67,7 +67,7 @@ public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 	public void parse(String line) {
 		line = line.trim();
 		try {
-		    // 1 7.244192e-003	1.164305e-001	2.868147e+001	-1.097712e-004	1.535086e-007	0.000000e+000	8.273977e-006	-1.054657e-005	-7.008010e-005	-3.126270e-005	0.000000e+000	0.000000e+000	0.000000e+000
+		    // 1 7.244192e-003	1.164305e-001	2.868147e+001	-1.097712e-004	1.535086e-007	0.000000e+000	8.273977e-006	-1.054657e-005	0.000000e+000	0.000000e+000	-7.008010e-005	-3.126270e-005	0.000000e+000	0.000000e+000	0.000000e+000
 			
 			String columns[] = line.split("\\s+");
 			if (columns.length < 14)
@@ -89,6 +89,8 @@ public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 
 			double B1 = Double.parseDouble(columns[col++].trim());
 			double B2 = Double.parseDouble(columns[col++].trim());
+			double B3 = Double.parseDouble(columns[col++].trim());
+			double B4 = Double.parseDouble(columns[col++].trim());
 
 			double C1 = Double.parseDouble(columns[col++].trim());
 			double C2 = Double.parseDouble(columns[col++].trim());
@@ -109,6 +111,10 @@ public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 
 			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).setValue(B1);
 			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).setValue(B2);
+			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).setValue(B3);
+			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).setColumn(Integer.MAX_VALUE);
+			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).setValue(B4);
+			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).setColumn(Integer.MAX_VALUE);
 
 			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).setValue(C1);
 			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).setColumn(Integer.MAX_VALUE);

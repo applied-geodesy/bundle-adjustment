@@ -1,23 +1,23 @@
 /***********************************************************************
- * Copyright by Michael Loesler, https://software.applied-geodesy.org   *
- *                                                                      *
- * This program is free software; you can redistribute it and/or modify *
- * it under the terms of the GNU General Public License as published by *
- * the Free Software Foundation; either version 3 of the License, or    *
- * at your option any later version.                                    *
- *                                                                      *
- * This program is distributed in the hope that it will be useful,      *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
- * GNU General Public License for more details.                         *
- *                                                                      *
- * You should have received a copy of the GNU General Public License    *
- * along with this program; if not, see <http://www.gnu.org/licenses/>  *
- * or write to the                                                      *
- * Free Software Foundation, Inc.,                                      *
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.            *
- *                                                                      *
- ***********************************************************************/
+* Copyright by Michael Loesler, https://software.applied-geodesy.org   *
+*                                                                      *
+* This program is free software; you can redistribute it and/or modify *
+* it under the terms of the GNU General Public License as published by *
+* the Free Software Foundation; either version 3 of the License, or    *
+* at your option any later version.                                    *
+*                                                                      *
+* This program is distributed in the hope that it will be useful,      *
+* but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+* GNU General Public License for more details.                         *
+*                                                                      *
+* You should have received a copy of the GNU General Public License    *
+* along with this program; if not, see <http://www.gnu.org/licenses/>  *
+* or write to the                                                      *
+* Free Software Foundation, Inc.,                                      *
+* 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.            *
+*                                                                      *
+***********************************************************************/
 
 package org.applied_geodesy.adjustment.bundle.orientation;
 
@@ -32,7 +32,7 @@ import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
 public class InteriorOrientation implements Referenceable<Camera>, Iterable<UnknownParameter<InteriorOrientation>> {
 	private final Camera camera;
-	private Map<ParameterType, UnknownParameter<InteriorOrientation>> params = new LinkedHashMap<ParameterType, UnknownParameter<InteriorOrientation>>(13);
+	private Map<ParameterType, UnknownParameter<InteriorOrientation>> params = new LinkedHashMap<ParameterType, UnknownParameter<InteriorOrientation>>(15);
 	
 	public InteriorOrientation(Camera camera) {
 		this.camera = camera;
@@ -49,6 +49,9 @@ public class InteriorOrientation implements Referenceable<Camera>, Iterable<Unkn
 		this.params.put(ParameterType.TANGENTIAL_DISTORTION_B1, new UnknownParameter<InteriorOrientation>(ParameterType.TANGENTIAL_DISTORTION_B1, this));
 		this.params.put(ParameterType.TANGENTIAL_DISTORTION_B2, new UnknownParameter<InteriorOrientation>(ParameterType.TANGENTIAL_DISTORTION_B2, this));
 		
+		this.params.put(ParameterType.TANGENTIAL_DISTORTION_B3, new UnknownParameter<InteriorOrientation>(ParameterType.TANGENTIAL_DISTORTION_B3, this));
+		this.params.put(ParameterType.TANGENTIAL_DISTORTION_B4, new UnknownParameter<InteriorOrientation>(ParameterType.TANGENTIAL_DISTORTION_B4, this));
+		
 		this.params.put(ParameterType.AFFINITY_AND_SHEAR_C1, new UnknownParameter<InteriorOrientation>(ParameterType.AFFINITY_AND_SHEAR_C1, this));
 		this.params.put(ParameterType.AFFINITY_AND_SHEAR_C2, new UnknownParameter<InteriorOrientation>(ParameterType.AFFINITY_AND_SHEAR_C2, this));
 	
@@ -59,6 +62,10 @@ public class InteriorOrientation implements Referenceable<Camera>, Iterable<Unkn
 	
 	public UnknownParameter<InteriorOrientation> get(ParameterType parameterType) {
 		return this.params.get(parameterType);
+	}
+	
+	public int getNumberOfParameters() {
+		return this.params.size();
 	}
 
 	@Override

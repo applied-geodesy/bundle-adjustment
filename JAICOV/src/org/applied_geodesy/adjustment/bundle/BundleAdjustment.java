@@ -1185,7 +1185,7 @@ public class BundleAdjustment {
 	private void reduceNormalEquationSystem(NormalEquationSystem neq, Camera camera) throws IllegalArgumentException, MatrixSingularException {
 		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 		
-		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(13);
+		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(interiorOrientation.getNumberOfParameters());
 		for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
 			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
 				continue;
@@ -1323,7 +1323,7 @@ public class BundleAdjustment {
 	private void extractReducedParameters(NormalEquationSystem neq, Camera camera) {
 		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 		
-		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(13);
+		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(interiorOrientation.getNumberOfParameters());
 		for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
 			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
 				continue;
