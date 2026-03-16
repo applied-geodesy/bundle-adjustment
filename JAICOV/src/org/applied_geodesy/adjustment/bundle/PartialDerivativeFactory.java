@@ -155,6 +155,8 @@ class PartialDerivativeFactory {
 
 		double B1 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).getValue();
 		double B2 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).getValue();
+		double B3 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).getValue();
+		double B4 = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).getValue();
 
 		double C1 = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).getValue();
 		double C2 = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).getValue();
@@ -221,9 +223,11 @@ class PartialDerivativeFactory {
 		double dRadX = xs * dRad;
 		double dRadY = ys * dRad;
 		
-		double dTanX = B1 * (r2 + xxs2) + B2 * xys2;
-		double dTanY = B2 * (r2 + yys2) + B1 * xys2;
-
+		double constTanSym = (1.0 + B3*r2 + B4*r4);
+		
+		double dTanX = (B1 * (r2 + xxs2) + B2 * xys2) * constTanSym;
+		double dTanY = (B2 * (r2 + yys2) + B1 * xys2) * constTanSym;
+		
 		double dAffX = C1*xs + C2*ys;
 		double dAffY = 0.0;
 
@@ -257,8 +261,10 @@ class PartialDerivativeFactory {
 		double par_xs_A2 = xs*(r4 - r04);
 		double par_xs_A3 = xs*(r6 - r06);
 		
-		double par_xs_B1 = xxs2 + r2;
-		double par_xs_B2 = xys2;
+		double par_xs_B1 = constTanSym * (xxs2 + r2);
+		double par_xs_B2 = constTanSym * xys2;
+		double par_xs_B3 = r2*(B1 * (xxs2 + r2) + B2 * xys2);
+		double par_xs_B4 = r4*(B1 * (xxs2 + r2) + B2 * xys2);
 		
 		double par_xs_C1 = xs;
 		double par_xs_C2 = ys;
@@ -289,8 +295,10 @@ class PartialDerivativeFactory {
 		double par_ys_A2 = ys*(r4 - r04);
 		double par_ys_A3 = ys*(r6 - r06);
 		
-		double par_ys_B1 = xys2;
-		double par_ys_B2 = yys2 + r2;
+		double par_ys_B1 = constTanSym * xys2;
+		double par_ys_B2 = constTanSym * (yys2 + r2);
+		double par_ys_B3 = r2*(B2 * (yys2 + r2) + B1 * xys2);     
+		double par_ys_B4 = r4*(B2 * (yys2 + r2) + B1 * xys2);
 		
 		double par_ys_C1 = 0.0;
 		double par_ys_C2 = 0.0;
@@ -309,11 +317,12 @@ class PartialDerivativeFactory {
 		double par_dRadY_ys = yys2 * constRad + dRad;
 		
 		// chain rule coefficients: dTan
-		double par_dTanX_xs = 2.0*(3.0*B1*xs + B2*ys);
-		double par_dTanX_ys = 2.0*(    B1*ys + B2*xs);
+		double constTan = 2.0*(B3 + 2.0*B4*r2);
+		double par_dTanX_xs = xs*constTan*(B1*(xxs2 + r2) + B2*xys2) + 2.0*(3*B1*xs + B2*ys)*constTanSym;
+		double par_dTanX_ys = ys*constTan*(B1*(xxs2 + r2) + B2*xys2) + 2.0*(  B2*xs + B1*ys)*constTanSym;
 		
-		double par_dTanY_xs = 2.0*(    B2*xs + B1*ys);
-		double par_dTanY_ys = 2.0*(3.0*B2*ys + B1*xs);
+		double par_dTanY_xs = xs*constTan*(B2*(yys2 + r2) + B1*xys2) + 2.0*(  B1*ys + B2*xs)*constTanSym;
+		double par_dTanY_ys = ys*constTan*(B2*(yys2 + r2) + B1*xys2) + 2.0*(3*B2*ys + B1*xs)*constTanSym;
 		
 		// chain rule coefficients: dAff
 		double par_dAffX_xs = C1;
@@ -380,8 +389,7 @@ class PartialDerivativeFactory {
 		boolean diagonalWeighting = corrCoefXY == 0;
 		
 		int numberOfRows = imageCoordinate.getNumberOfParameters();
-
-		// 3 ... object point, 13 ... interior orientation, 6 ... exterior orientation, datum defect
+		
 		DenseVector w = new DenseVector(numberOfRows);
 		DenseMatrix A = new DenseMatrix(numberOfRows, neq.size());
 
@@ -483,6 +491,20 @@ class PartialDerivativeFactory {
 			columns.add(column);
 			A.set(0, column, par_xs_B2);
 			A.set(1, column, par_ys_B2);
+		}
+		
+		column = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).getColumn();
+		if (column >= 0 && column != Integer.MAX_VALUE) {
+			columns.add(column);
+			A.set(0, column, par_xs_B3);
+			A.set(1, column, par_ys_B3);
+		}
+		
+		column = interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).getColumn();
+		if (column >= 0 && column != Integer.MAX_VALUE) {
+			columns.add(column);
+			A.set(0, column, par_xs_B4);
+			A.set(1, column, par_ys_B4);
 		}
 
 		column = interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).getColumn();

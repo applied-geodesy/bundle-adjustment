@@ -32,7 +32,7 @@ import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
 public class InteriorOrientation implements Referenceable<Camera>, Iterable<UnknownParameter<InteriorOrientation>> {
 	private final Camera camera;
-	private Map<ParameterType, UnknownParameter<InteriorOrientation>> params = new LinkedHashMap<ParameterType, UnknownParameter<InteriorOrientation>>(13);
+	private Map<ParameterType, UnknownParameter<InteriorOrientation>> params = new LinkedHashMap<ParameterType, UnknownParameter<InteriorOrientation>>(15);
 	
 	public InteriorOrientation(Camera camera) {
 		this.camera = camera;
@@ -49,6 +49,9 @@ public class InteriorOrientation implements Referenceable<Camera>, Iterable<Unkn
 		this.params.put(ParameterType.TANGENTIAL_DISTORTION_B1, new UnknownParameter<InteriorOrientation>(ParameterType.TANGENTIAL_DISTORTION_B1, this));
 		this.params.put(ParameterType.TANGENTIAL_DISTORTION_B2, new UnknownParameter<InteriorOrientation>(ParameterType.TANGENTIAL_DISTORTION_B2, this));
 		
+		this.params.put(ParameterType.TANGENTIAL_DISTORTION_B3, new UnknownParameter<InteriorOrientation>(ParameterType.TANGENTIAL_DISTORTION_B3, this));
+		this.params.put(ParameterType.TANGENTIAL_DISTORTION_B4, new UnknownParameter<InteriorOrientation>(ParameterType.TANGENTIAL_DISTORTION_B4, this));
+		
 		this.params.put(ParameterType.AFFINITY_AND_SHEAR_C1, new UnknownParameter<InteriorOrientation>(ParameterType.AFFINITY_AND_SHEAR_C1, this));
 		this.params.put(ParameterType.AFFINITY_AND_SHEAR_C2, new UnknownParameter<InteriorOrientation>(ParameterType.AFFINITY_AND_SHEAR_C2, this));
 	
@@ -59,6 +62,10 @@ public class InteriorOrientation implements Referenceable<Camera>, Iterable<Unkn
 	
 	public UnknownParameter<InteriorOrientation> get(ParameterType parameterType) {
 		return this.params.get(parameterType);
+	}
+	
+	public int getNumberOfParameters() {
+		return this.params.size();
 	}
 
 	@Override

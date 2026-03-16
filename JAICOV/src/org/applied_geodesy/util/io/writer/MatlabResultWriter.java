@@ -71,11 +71,17 @@ public class MatlabResultWriter extends BundleAdjustmentResultWriter {
 		
 		double sigma2aprio = bundleAdjustment.getVarianceFactorApriori();
 		double sigma2apost = bundleAdjustment.getVarianceFactorAposteriori();
+		
+		int numInteriorParams = 0;
+		for (Camera camera : cameras) {
+			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
+			numInteriorParams += interiorOrientation.getNumberOfParameters();
+		}
 
 		Struct coordinates          = Mat5.newStruct(1, objectCoordinates.size());
-		Struct interiorOrientations = Mat5.newStruct(1, cameras.size() * 13);
+		Struct interiorOrientations = Mat5.newStruct(1, numInteriorParams);
 		
-		List<Integer> indices = exportDispersionMatrix ? new ArrayList<Integer>(objectCoordinates.size() * 3 + cameras.size() * 13) : null;
+		List<Integer> indices = exportDispersionMatrix ? new ArrayList<Integer>(objectCoordinates.size() * 3 + numInteriorParams) : null;
 
 		int structIndex = 0;
 		int columnIndex = 1;
