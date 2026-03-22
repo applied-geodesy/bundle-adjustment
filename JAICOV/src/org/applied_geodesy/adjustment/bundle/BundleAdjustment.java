@@ -42,6 +42,8 @@ import org.applied_geodesy.adjustment.bundle.camera.ImageCoordinate;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.orientation.ExteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.derivation.GaussMarkovEquations;
+import org.applied_geodesy.adjustment.bundle.derivation.PartialDerivativeFactory;
 import org.applied_geodesy.adjustment.bundle.parameter.DirectlyObservedParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameterGroup;

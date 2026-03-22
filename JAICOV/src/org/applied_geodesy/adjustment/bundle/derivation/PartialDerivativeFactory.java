@@ -19,7 +19,7 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.adjustment.bundle;
+package org.applied_geodesy.adjustment.bundle.derivation;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,6 +28,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
+import org.applied_geodesy.adjustment.bundle.ScaleBar;
 import org.applied_geodesy.adjustment.bundle.camera.Camera;
 import org.applied_geodesy.adjustment.bundle.camera.Image;
 import org.applied_geodesy.adjustment.bundle.camera.ImageCoordinate;
@@ -50,7 +52,7 @@ import no.uib.cipr.matrix.Matrix;
 import no.uib.cipr.matrix.UpperSymmBandMatrix;
 import no.uib.cipr.matrix.UpperSymmPackMatrix;
 
-final class PartialDerivativeFactory {
+final public class PartialDerivativeFactory {
 	static int cnt = 0;
 	final static class CollinearityEquationFactory {
 		// substitute parameters
@@ -193,7 +195,7 @@ final class PartialDerivativeFactory {
 	
 	private PartialDerivativeFactory() {}
 	
-	static GaussMarkovEquations getPartialDerivative(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ObservationParameterGroup<?> observations) throws UnsupportedOperationException {
+	public static GaussMarkovEquations getPartialDerivative(double sigma2apriori, UpperSymmPackMatrix NEQ, DenseVector neq, ObservationParameterGroup<?> observations) throws UnsupportedOperationException {
 		if (observations instanceof ImageCoordinate) 
 			return getPartialDerivativeImageCoordinate(sigma2apriori, NEQ, neq, (ImageCoordinate)observations);
 		else if (observations instanceof ScaleBar)

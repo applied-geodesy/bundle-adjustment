@@ -19,7 +19,7 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.adjustment.bundle;
+package org.applied_geodesy.adjustment.bundle.derivation;
 
 import no.uib.cipr.matrix.Matrix;
 import no.uib.cipr.matrix.Vector;

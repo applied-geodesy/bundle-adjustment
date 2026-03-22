@@ -19,13 +19,13 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.adjustment.bundle;
+package org.applied_geodesy.adjustment.bundle.derivation;
 
 import java.util.Set;
 
-import org.applied_geodesy.adjustment.bundle.PartialDerivativeFactory.CollinearityEquationFactory;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.AffinityShearDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
+import org.applied_geodesy.adjustment.bundle.derivation.PartialDerivativeFactory.CollinearityEquationFactory;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
 import no.uib.cipr.matrix.Matrix;
