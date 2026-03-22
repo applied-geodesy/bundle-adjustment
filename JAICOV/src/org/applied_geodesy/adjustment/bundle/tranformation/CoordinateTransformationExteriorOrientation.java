@@ -26,9 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.applied_geodesy.adjustment.bundle.Image;
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
-import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.camera.Image;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.ExteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 
 import no.uib.cipr.matrix.Matrix;

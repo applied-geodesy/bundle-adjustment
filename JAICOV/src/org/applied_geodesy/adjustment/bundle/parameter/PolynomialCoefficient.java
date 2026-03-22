@@ -19,24 +19,21 @@
 *                                                                      *
 ***********************************************************************/
 
-module org.applied_geodesy.jaicov {
-	exports org.applied_geodesy.util.io.reader;
-	exports org.applied_geodesy.adjustment;
-	exports org.applied_geodesy.adjustment.bundle;
-	exports org.applied_geodesy.adjustment.bundle.dlt;
-	exports org.applied_geodesy.adjustment.bundle.camera;
-	exports org.applied_geodesy.adjustment.bundle.camera.distortion;
-	exports org.applied_geodesy.adjustment.bundle.camera.orientation;
-	exports org.applied_geodesy.adjustment.bundle.parameter;
-	exports org.applied_geodesy.util.io.writer;
+package org.applied_geodesy.adjustment.bundle.parameter;
 
-	requires arpack.combined.all;
-	requires core;
-	requires transitive mtj;
-	
-	requires us.hebi.matlab.mat.mfl.core;
-	requires jdk.unsupported;
+public class PolynomialCoefficient<T> extends UnknownParameter<T> {
+	private final int order;
+	public PolynomialCoefficient(ParameterType parameterType, T reference, int order) {
+		super(parameterType, reference);
+		this.order = order;
+	}
 
-	requires transitive java.desktop;
-	requires transitive java.sql;
+	public final int getOrder() {
+		return this.order;
+	}
+
+	@Override
+	public String toString() {
+		return super.toString() + ", [order=" + order + "]";
+	}
 }

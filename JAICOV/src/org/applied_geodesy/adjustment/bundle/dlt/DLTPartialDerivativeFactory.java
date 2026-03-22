@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.applied_geodesy.adjustment.bundle.ImageCoordinate;
+import org.applied_geodesy.adjustment.bundle.camera.ImageCoordinate;
 import org.applied_geodesy.adjustment.bundle.dlt.DirectLinearTransformation.RestrictionType;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;

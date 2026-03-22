@@ -30,33 +30,23 @@ public enum ParameterType {
 	/** Brennweite c **/
 	PRINCIPAL_DISTANCE(113),
 	
-	/** Polynomkoeffizient der radial-symmetrischen Verzeichnung A1 **/
-	RADIAL_DISTORTION_A1(121),
-	/** Polynomkoeffizient der radial-symmetrischen Verzeichnung A2 **/
-	RADIAL_DISTORTION_A2(122),
-	/** Polynomkoeffizient der radial-symmetrischen Verzeichnung A3 **/
-	RADIAL_DISTORTION_A3(123),
+	/** Polynomkoeffizient der radial-symmetrischen Verzeichnung Ai **/
+	RADIAL_POLYNOMIAL_A(121),
 	
-	/** Radial-asymmetrische und tangentiale Verzeichnung B1 **/
-	TANGENTIAL_DISTORTION_B1(131),
-	/** Radial-asymmetrische und tangentiale Verzeichnung B2 **/
-	TANGENTIAL_DISTORTION_B2(132),
-	/** Radial-asymmetrische und tangentiale Verzeichnung B3 **/
-	TANGENTIAL_DISTORTION_B3(134),
-	/** Radial-asymmetrische und tangentiale Verzeichnung B4 **/
-	TANGENTIAL_DISTORTION_B4(135),
+	/** Radial-asymmetrische und tangentiale Verzeichnung Bi **/
+	TANGENTIAL_POLYNOMIAL_B(131),
+	/** Radial-asymmetrische und tangentiale Verzeichnung Bx **/
+	TANGENTIAL_DISTORTION_Bx(132),
+	/** Radial-asymmetrische und tangentiale Verzeichnung By **/
+	TANGENTIAL_DISTORTION_By(133),
 	
-	/** Affinitaet und Scherung C1 **/
-	AFFINITY_AND_SHEAR_C1(141),
-	/** Affinitaet und Scherung C2 **/
-	AFFINITY_AND_SHEAR_C2(142),
+	/** Affinitaet und Scherung Cx **/
+	AFFINITY_AND_SHEAR_Cx(141),
+	/** Affinitaet und Scherung Cy **/
+	AFFINITY_AND_SHEAR_Cy(142),
 	
-	/** Polynomkoeffizient der streckenabhaenigen Verzeichnung D1 **/
-	DISTANCE_DISTORTION_D1(151),
-	/** Polynomkoeffizient der streckenabhaenigen Verzeichnung D2 **/
-	DISTANCE_DISTORTION_D2(152),
-	/** Polynomkoeffizient der streckenabhaenigen Verzeichnung D3 **/
-	DISTANCE_DISTORTION_D3(153),
+	/** Polynomkoeffizient der streckenabhaenigen Verzeichnung Di **/
+	DISTANCE_POLYNOMIAL_D(151),
 	
 	/** Koordinate der Kamera X0 **/
 	CAMERA_COORDINATE_X(251),

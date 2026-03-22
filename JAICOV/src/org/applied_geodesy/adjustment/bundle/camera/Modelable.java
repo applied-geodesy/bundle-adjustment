@@ -19,24 +19,15 @@
 *                                                                      *
 ***********************************************************************/
 
-module org.applied_geodesy.jaicov {
-	exports org.applied_geodesy.util.io.reader;
-	exports org.applied_geodesy.adjustment;
-	exports org.applied_geodesy.adjustment.bundle;
-	exports org.applied_geodesy.adjustment.bundle.dlt;
-	exports org.applied_geodesy.adjustment.bundle.camera;
-	exports org.applied_geodesy.adjustment.bundle.camera.distortion;
-	exports org.applied_geodesy.adjustment.bundle.camera.orientation;
-	exports org.applied_geodesy.adjustment.bundle.parameter;
-	exports org.applied_geodesy.util.io.writer;
+package org.applied_geodesy.adjustment.bundle.camera;
 
-	requires arpack.combined.all;
-	requires core;
-	requires transitive mtj;
-	
-	requires us.hebi.matlab.mat.mfl.core;
-	requires jdk.unsupported;
+import org.applied_geodesy.adjustment.bundle.Referenceable;
 
-	requires transitive java.desktop;
-	requires transitive java.sql;
+public interface Modelable extends Referenceable<Camera> {
+
+	/**
+	 * Returns the number of parameters of the model
+	 * @return n
+	 */
+	public int getNumberOfParameters();
 }

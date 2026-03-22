@@ -26,9 +26,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.SQLException;
 
-import org.applied_geodesy.adjustment.bundle.Camera;
-import org.applied_geodesy.adjustment.bundle.Image;
-import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.Image;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.ExteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 
 public class ExteriorOrientationFlatFileReader extends SourceFileReader<Camera> {

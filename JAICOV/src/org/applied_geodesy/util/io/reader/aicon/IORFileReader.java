@@ -26,9 +26,13 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.SQLException;
 
-import org.applied_geodesy.adjustment.bundle.Camera;
-import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
-import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.AffinityShearDistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.RadiallySymmetricDistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.TangentialDistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
 import org.applied_geodesy.util.io.reader.SourceFileReader;
 
 public class IORFileReader extends SourceFileReader<Camera> {
@@ -36,10 +40,6 @@ public class IORFileReader extends SourceFileReader<Camera> {
 	private InteriorOrientation interiorOrientation;
 	private int lineCounter = 0;
 	private final int[] LINE_LENGHTS = new int[] {8, 1, 2, 2, 4};
-	public IORFileReader(Camera camera) {
-		this.camera = camera;
-		this.reset();
-	}
 	
 	public IORFileReader(String fileName) {
 		this(new File(fileName).toPath());
@@ -99,6 +99,9 @@ public class IORFileReader extends SourceFileReader<Camera> {
 			if (this.lineCounter >= LINE_LENGHTS.length || columns.length < LINE_LENGHTS[this.lineCounter] || this.lineCounter > 0 && this.camera == null)
 				return;
 			
+			DistortionModel distortionModel = null;
+			PolynomialCoefficient<?> polynomialCoefficient = null;
+			
 			switch(this.lineCounter++) {
 			case 0: // 1. Zeile
 				long camid = Long.parseLong(columns[0].trim());
@@ -112,68 +115,63 @@ public class IORFileReader extends SourceFileReader<Camera> {
 				
 				double r0 = Double.parseDouble(columns[7].trim());
 				
-				this.camera = new Camera(camid, r0);
+				this.camera = new Camera(camid, r0, DistortionModel.Type.RADIAL_DISTORTION, DistortionModel.Type.TANGENTIAL_DISTORTION, DistortionModel.Type.AFFINITY_AND_SHEAR);
 				this.interiorOrientation = camera.getInteriorOrientation();
 				
-				this.interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE).setValue(-c);
-				this.interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE).setColumn(-1);
+				this.interiorOrientation.getPrincipleDistance().setValue(-c);
+				this.interiorOrientation.getPrincipleDistance().setColumn(-1);
 
-				this.interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X).setValue(x0);
-				this.interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X).setColumn(-1);
+				this.interiorOrientation.getPrinciplePointX().setValue(x0);
+				this.interiorOrientation.getPrinciplePointX().setColumn(-1);
 
-				this.interiorOrientation.get(ParameterType.PRINCIPAL_POINT_Y).setValue(y0);
-				this.interiorOrientation.get(ParameterType.PRINCIPAL_POINT_Y).setColumn(-1);
-
-				this.interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A1).setValue(A1);
-				this.interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A1).setColumn(-1);
+				this.interiorOrientation.getPrinciplePointY().setValue(y0);
+				this.interiorOrientation.getPrinciplePointY().setColumn(-1);
 				
-				this.interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).setValue(A2);
-				this.interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).setColumn(-1);
+				distortionModel = this.camera.getDistortionModel(DistortionModel.Type.RADIAL_DISTORTION);
 				
-				// symmetric part of radial-asymmetric distortion not supported by AICON yet
-				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).setValue(0.0);
-				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).setColumn(-1);
-				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).setValue(0.0);
-				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).setColumn(-1);
+				polynomialCoefficient = ((RadiallySymmetricDistortionModel)distortionModel).add(1);
+				polynomialCoefficient.setValue(A1);
+				polynomialCoefficient.setColumn(-1);
 				
-				// distance-dependent distortion not supported by AICON yet
-				this.interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).setValue(0.0);
-				this.interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).setColumn(-1);
-				
-				this.interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).setValue(0.0);
-				this.interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).setColumn(-1);
-				
-				this.interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).setValue(0.0);
-				this.interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).setColumn(-1);
+				polynomialCoefficient = ((RadiallySymmetricDistortionModel)distortionModel).add(2);
+				polynomialCoefficient.setValue(A2);
+				polynomialCoefficient.setColumn(-1);
 				
 				break;
 			case 1: // 2. Zeile
 				double A3 = Double.parseDouble(columns[0].trim());
-
-				this.interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).setValue(A3);
-				this.interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).setColumn(-1);
+				
+				distortionModel = this.camera.getDistortionModel(DistortionModel.Type.RADIAL_DISTORTION);
+				
+				polynomialCoefficient = ((RadiallySymmetricDistortionModel)distortionModel).add(3);
+				polynomialCoefficient.setValue(A3);
+				polynomialCoefficient.setColumn(-1);
 
 				break;
 			case 2: // 3. Zeile
-				double B1 = Double.parseDouble(columns[0].trim());
-				double B2 = Double.parseDouble(columns[1].trim());
-
-				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).setValue(B1);
-				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).setColumn(-1);
+				double Bx = Double.parseDouble(columns[0].trim());
+				double By = Double.parseDouble(columns[1].trim());
 				
-				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).setValue(B2);
-				this.interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).setColumn(-1);
+				distortionModel = this.camera.getDistortionModel(DistortionModel.Type.TANGENTIAL_DISTORTION);
+
+				((TangentialDistortionModel)distortionModel).getBx().setValue(Bx);
+				((TangentialDistortionModel)distortionModel).getBx().setColumn(-1);
+				
+				((TangentialDistortionModel)distortionModel).getBy().setValue(By);
+				((TangentialDistortionModel)distortionModel).getBy().setColumn(-1);
 				
 				break;
 			case 3: // 4. Zeile
-				double C1 = Double.parseDouble(columns[0].trim());
-				double C2 = Double.parseDouble(columns[1].trim());
+				double Cx = Double.parseDouble(columns[0].trim());
+				double Cy = Double.parseDouble(columns[1].trim());
 				
-				this.interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).setValue(C1);
-				this.interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).setColumn(-1);
+				distortionModel = this.camera.getDistortionModel(DistortionModel.Type.AFFINITY_AND_SHEAR);
 				
-				this.interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).setValue(C2);
-				this.interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).setColumn(-1);
+				((AffinityShearDistortionModel)distortionModel).getCx().setValue(Cx);
+				((AffinityShearDistortionModel)distortionModel).getCx().setColumn(-1);
+				
+				((AffinityShearDistortionModel)distortionModel).getCy().setValue(Cy);
+				((AffinityShearDistortionModel)distortionModel).getCy().setColumn(-1);
 
 				break;
 			}

@@ -27,9 +27,9 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.Map;
 
-import org.applied_geodesy.adjustment.bundle.Camera;
-import org.applied_geodesy.adjustment.bundle.Image;
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.Image;
 import org.applied_geodesy.util.io.reader.SourceFileReader;
 
 public class PHCFileReader extends SourceFileReader<Camera> {

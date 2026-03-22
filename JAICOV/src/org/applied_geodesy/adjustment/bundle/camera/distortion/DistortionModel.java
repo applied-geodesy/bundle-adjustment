@@ -19,71 +19,30 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.adjustment.bundle;
+package org.applied_geodesy.adjustment.bundle.camera.distortion;
 
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.Modelable;
+import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
-import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
-
-public class Camera implements Iterable<Image> {
-	private final long id;
-	private final double r0;
-	private InteriorOrientation interiorOrientation = new InteriorOrientation(this);
-	private Map<Long, Image> images = new LinkedHashMap<Long, Image>();
-	
-	public Camera(long id, double r0) {
-		this.id = id;
-		this.r0 = r0;
+public abstract class DistortionModel implements Modelable, Iterable<UnknownParameter<? extends DistortionModel>> {
+	public enum Type {
+		RADIAL_DISTORTION,
+		DISTANCE_DISTORTION,
+		TANGENTIAL_DISTORTION,
+		AFFINITY_AND_SHEAR;
 	}
 	
-	public InteriorOrientation getInteriorOrientation() {
-		return this.interiorOrientation;
-	}
+	private final Camera camera;
 	
-	public final long getId() {
-		return this.id;
-	}
-	
-	public final double getR0() {
-		return this.r0;
-	}
-	
-	public int getNumberOfImages() {
-		return this.images.size();
-	}
-	
-	public void removeAll() {
-		this.images.clear();
-	}
-	
-	public boolean remove(Image image) {
-		if (!this.images.containsKey(image.getId()))
-			return false;
-		this.images.remove(image.getId());
-		return true;
-	}
-	
-	public Image add(long imageId) {
-		if (this.images.containsKey(imageId))
-			return this.images.get(imageId);
-		Image image = new Image(imageId, this);
-		this.images.put(imageId, image);
-		return image;
-	}
-	
-//	public Image get(int index) {
-//		return this.images.get(index);
-//	}
-
-	@Override
-	public Iterator<Image> iterator() {
-		return this.images.values().iterator();
+	public DistortionModel(Camera camera) {
+		this.camera = camera;
 	}
 
 	@Override
-	public String toString() {
-		return "Camera [id=" + id + ", r0=" + r0 + ", images=" + images.size() + "]";
+	public Camera getReference() {
+		return this.camera;
 	}
+	
+	public abstract Type getType();
 }

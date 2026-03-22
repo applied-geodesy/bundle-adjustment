@@ -45,4 +45,9 @@ public class UnknownParameter<T> extends Parameter implements Referenceable<T> {
 	public T getReference() {
 		return this.reference;
 	}
+	
+	@Override
+	public String toString() {
+		return super.toString() + ", [column=" + column + "]";
+	}
 }

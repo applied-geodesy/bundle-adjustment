@@ -32,16 +32,19 @@ import java.util.Random;
 import org.applied_geodesy.adjustment.EstimationStateType;
 import org.applied_geodesy.adjustment.EstimationType;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
-import org.applied_geodesy.adjustment.bundle.Camera;
-import org.applied_geodesy.adjustment.bundle.Image;
-import org.applied_geodesy.adjustment.bundle.ImageCoordinate;
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
 import org.applied_geodesy.adjustment.bundle.ScaleBar;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment.MatrixInversion;
-import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.Image;
+import org.applied_geodesy.adjustment.bundle.camera.ImageCoordinate;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.AffinityShearDistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.RadiallySymmetricDistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.parameter.DirectlyObservedParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
-import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
+import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.util.io.reader.aicon.EORFileReader;
 import org.applied_geodesy.util.io.reader.aicon.IORFileReader;
@@ -84,14 +87,12 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 		Camera camera = iorReader.readAndImport();
 		
 		// Fixing some interior orientation parameters
-		camera.getInteriorOrientation().get(ParameterType.RADIAL_DISTORTION_A3).setColumn(Integer.MAX_VALUE);
+		DistortionModel distortionModel = camera.getDistortionModel(DistortionModel.Type.RADIAL_DISTORTION);
+		((RadiallySymmetricDistortionModel)distortionModel).get(3).setColumn(Integer.MAX_VALUE);
 		
-		camera.getInteriorOrientation().get(ParameterType.AFFINITY_AND_SHEAR_C1).setColumn(Integer.MAX_VALUE);
-		camera.getInteriorOrientation().get(ParameterType.AFFINITY_AND_SHEAR_C2).setColumn(Integer.MAX_VALUE);
-		
-		camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D1).setColumn(Integer.MAX_VALUE);
-		camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D2).setColumn(Integer.MAX_VALUE);
-		camera.getInteriorOrientation().get(ParameterType.DISTANCE_DISTORTION_D3).setColumn(Integer.MAX_VALUE);
+		distortionModel = camera.getDistortionModel(DistortionModel.Type.AFFINITY_AND_SHEAR);
+		((AffinityShearDistortionModel)distortionModel).getCx().setColumn(Integer.MAX_VALUE);
+		((AffinityShearDistortionModel)distortionModel).getCy().setColumn(Integer.MAX_VALUE);
 		
 		// Read taken images and exterior orientation parameters of images
 		EORFileReader eorReader = new EORFileReader(basepath + ".eor", camera);
@@ -207,8 +208,15 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 			System.out.println();
 			
 			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
-			for (UnknownParameter<InteriorOrientation> interiorOrientationParameter : interiorOrientation) {
-				System.out.println(String.format(Locale.ENGLISH, "%-25s = %+12.10f %s", interiorOrientationParameter.getParameterType().name(), interiorOrientationParameter.getValue(), interiorOrientationParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
+			for (UnknownParameter<?> unknownParameter : interiorOrientation) {
+				System.out.println(String.format(Locale.ENGLISH, "%-27s = %+15.10f %s", unknownParameter.getParameterType().name(), unknownParameter.getValue(), unknownParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
+			}
+			Collection<DistortionModel> distortionModels = camera.getDistortionModels();
+			for (DistortionModel model : distortionModels) {
+				for (UnknownParameter<?> unknownParameter : model) {
+					int order = (unknownParameter instanceof PolynomialCoefficient) ? ((PolynomialCoefficient<?>)unknownParameter).getOrder() : -1;
+					System.out.println(String.format(Locale.ENGLISH, "%-27s = %+15.10f %s", unknownParameter.getParameterType().name() + (order < 0 ? "" : "(" + order + ")"), unknownParameter.getValue(), unknownParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
+				}
 			}
 
 			System.out.println();

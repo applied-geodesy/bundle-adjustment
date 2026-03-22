@@ -31,10 +31,12 @@ import org.applied_geodesy.adjustment.EstimationType;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment.MatrixInversion;
-import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
-import org.applied_geodesy.adjustment.bundle.Camera;
-import org.applied_geodesy.adjustment.bundle.Image;
-import org.applied_geodesy.adjustment.bundle.ImageCoordinate;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.Image;
+import org.applied_geodesy.adjustment.bundle.camera.ImageCoordinate;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.util.io.reader.aicon.AICONReportFileReader;
 
@@ -129,11 +131,21 @@ public class ExampleReport implements PropertyChangeListener {
 			
 			for (Camera camera : cameras) {
 				InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
-				for (UnknownParameter<InteriorOrientation> interiorOrientationParameter : interiorOrientation) {
-					System.out.println(String.format(Locale.ENGLISH, "%-25s = %+12.8f %s", interiorOrientationParameter.getParameterType().name(), interiorOrientationParameter.getValue(), interiorOrientationParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
-				}
+				for (UnknownParameter<?> unknownParameter : interiorOrientation)
+					System.out.println(String.format(Locale.ENGLISH, "%-27s = %+15.10f %s", unknownParameter.getParameterType().name(), unknownParameter.getValue(), unknownParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
+				System.out.println();
 			}
-			System.out.println();
+			
+			for (Camera camera : cameras) {
+				Collection<DistortionModel> distortionModels = camera.getDistortionModels();
+				for (DistortionModel model : distortionModels) {
+					for (UnknownParameter<?> unknownParameter : model) {
+						int order = (unknownParameter instanceof PolynomialCoefficient) ? ((PolynomialCoefficient<?>)unknownParameter).getOrder() : -1;
+						System.out.println(String.format(Locale.ENGLISH, "%-27s = %+15.10f %s", unknownParameter.getParameterType().name() + (order < 0 ? "" : "(" + order + ")"), unknownParameter.getValue(), unknownParameter.getColumn() == Integer.MAX_VALUE  ? "fixed" : ""));
+					}
+				}
+				System.out.println();
+			}
 			
 			// print some statistical parameters
 			System.out.println("Number of observations:           " + adjustment.getNumberOfObservations());
