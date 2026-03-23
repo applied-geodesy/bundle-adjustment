@@ -35,10 +35,10 @@ point cloud. For such specific applications, this tiny bundle adjustment library
 - In-situ camera calibration, i.e,
   + Principle point `x0`, `y0`
   + Principle distance `c`
-  + Radial-symmetric distortion `A1`, `A2`, `A3`
-  + Tangential distortion `B1`, `B2` with symmetric coefficients `B3`, `B4`
-  + Affinity and shear `C1`, `C2`
-  + Distance-dependent distortion `D1`, `D2`, `D3`
+  + Radial-symmetric distortion with polynomial coefficients `Ai` (`i=1...n`)
+  + Tangential distortion `Bx`, `By` with symmetric polynomial coefficients `Bi` (`i=1...n`)
+  + Affinity and shear `Cx`, `Cy`
+  + Distance-dependent distortion with polynomial coefficients `Di` (`i=1...n`)
 - Consideration of correlation between planar coordinate components of observed image point
 - Consideration of fully populated dispersion matrix of directly observed parameters, e.g. observed coordinates of object points
 - Fully populated dispersion matrix of parameters to be estimated
