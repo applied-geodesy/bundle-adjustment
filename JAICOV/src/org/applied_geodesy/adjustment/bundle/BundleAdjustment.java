@@ -701,6 +701,7 @@ public class BundleAdjustment {
 				this.addUnknownParameter(unknownParameter);
 			}
 			
+			// add parameters of distortion models
 			Collection<DistortionModel> distortionModels = camera.getDistortionModels();
 			for (DistortionModel distortionModel : distortionModels) {
 				for (UnknownParameter<?> unknownParameter : distortionModel) {
