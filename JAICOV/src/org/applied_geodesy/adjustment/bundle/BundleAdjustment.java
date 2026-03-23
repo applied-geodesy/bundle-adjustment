@@ -51,7 +51,7 @@ import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.adjustment.defect.DefectType;
 import org.applied_geodesy.adjustment.defect.RankDefect;
-import org.applied_geodesy.util.io.writer.AdjustmentResultWritable ;
+import org.applied_geodesy.util.io.writer.AdjustmentResultWritable;
 
 import no.uib.cipr.matrix.DenseVector;
 import no.uib.cipr.matrix.Matrix;
