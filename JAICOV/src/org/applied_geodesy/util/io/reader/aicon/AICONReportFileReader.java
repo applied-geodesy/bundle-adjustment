@@ -42,6 +42,7 @@ import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.RadialDistanceDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.RadiallySymmetricDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.TangentialDistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
 import org.applied_geodesy.util.io.reader.SourceFileReader;
@@ -313,25 +314,28 @@ public class AICONReportFileReader extends SourceFileReader<BundleAdjustment> {
 		double value  = Double.parseDouble(columns[1].trim());
 		boolean fixed = columns[2].trim().matches("\\w+"); // columns[2].equalsIgnoreCase("fest");
 		
+		// paramter of interior orientation
+		InteriorOrientation interiorOrientation = this.camera.getInteriorOrientation();
+		// distortion models
+		// note: symmetric part of radial-asymmetric distortion and distance-dependent distortion not supported by AICON yet
 		RadiallySymmetricDistortionModel radiallySymmetricDistortionModel = (RadiallySymmetricDistortionModel)this.camera.getDistortionModel(DistortionModel.Type.RADIAL_DISTORTION);
-		RadialDistanceDistortionModel radialDistanceDistortionModel = (RadialDistanceDistortionModel)this.camera.getDistortionModel(DistortionModel.Type.DISTANCE_DISTORTION);
-		TangentialDistortionModel tangentialDistortionModel  = (TangentialDistortionModel)this.camera.getDistortionModel(DistortionModel.Type.TANGENTIAL_DISTORTION);
-		AffinityShearDistortionModel affinityShearDistortionModel = (AffinityShearDistortionModel)this.camera.getDistortionModel(DistortionModel.Type.AFFINITY_AND_SHEAR);
-
+		TangentialDistortionModel tangentialDistortionModel               = (TangentialDistortionModel)this.camera.getDistortionModel(DistortionModel.Type.TANGENTIAL_DISTORTION);
+		AffinityShearDistortionModel affinityShearDistortionModel         = (AffinityShearDistortionModel)this.camera.getDistortionModel(DistortionModel.Type.AFFINITY_AND_SHEAR);
+		RadialDistanceDistortionModel radialDistanceDistortionModel       = (RadialDistanceDistortionModel)this.camera.getDistortionModel(DistortionModel.Type.DISTANCE_DISTORTION);
+		
 		PolynomialCoefficient<?> coefficient = null;
-		// symmetric part of radial-asymmetric distortion and distance-dependent distortion not supported by AICON yet
 		switch(type) {
 		case "Ck":
-			this.camera.getInteriorOrientation().getPrincipleDistance().setValue(-value);
-			this.camera.getInteriorOrientation().getPrincipleDistance().setColumn(fixed ? Integer.MAX_VALUE : -1);
+			interiorOrientation.getPrincipleDistance().setValue(-value);
+			interiorOrientation.getPrincipleDistance().setColumn(fixed ? Integer.MAX_VALUE : -1);
 			break;
 		case "Xh":
-			this.camera.getInteriorOrientation().getPrinciplePointX().setValue(value);
-			this.camera.getInteriorOrientation().getPrinciplePointX().setColumn(fixed ? Integer.MAX_VALUE : -1);
+			interiorOrientation.getPrinciplePointX().setValue(value);
+			interiorOrientation.getPrinciplePointX().setColumn(fixed ? Integer.MAX_VALUE : -1);
 			break;
 		case "Yh":
-			this.camera.getInteriorOrientation().getPrinciplePointY().setValue(value);
-			this.camera.getInteriorOrientation().getPrinciplePointY().setColumn(fixed ? Integer.MAX_VALUE : -1);
+			interiorOrientation.getPrinciplePointY().setValue(value);
+			interiorOrientation.getPrinciplePointY().setColumn(fixed ? Integer.MAX_VALUE : -1);
 			break;
 		case "A1":
 			coefficient = radiallySymmetricDistortionModel.add(1);
