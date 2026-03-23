@@ -19,19 +19,15 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.util.io.writer;
+package org.applied_geodesy.adjustment.bundle.camera;
 
-import java.io.IOException;
+import org.applied_geodesy.adjustment.bundle.Referenceable;
 
-import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
-
-public interface AdjustmentResultWritable {
+public interface Modelable extends Referenceable<Camera> {
 
 	/**
-	 * Exports specific results of the bundle adjustment
-	 * @param bundleAdjustment
-	 * @throws NullPointerException
-	 * @throws IOException
+	 * Returns the number of parameters of the model
+	 * @return n
 	 */
-	public void export(BundleAdjustment bundleAdjustment) throws NullPointerException, IllegalArgumentException, IOException;
+	public int getNumberOfParameters();
 }

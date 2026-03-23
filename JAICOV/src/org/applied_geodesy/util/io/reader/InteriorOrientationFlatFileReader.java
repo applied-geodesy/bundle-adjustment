@@ -26,9 +26,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.SQLException;
 
-import org.applied_geodesy.adjustment.bundle.Camera;
-import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
-import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
 
 public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> {
 	private final Camera camera;
@@ -67,10 +66,10 @@ public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 	public void parse(String line) {
 		line = line.trim();
 		try {
-		    // 1 7.244192e-003	1.164305e-001	2.868147e+001	-1.097712e-004	1.535086e-007	0.000000e+000	8.273977e-006	-1.054657e-005	0.000000e+000	0.000000e+000	-7.008010e-005	-3.126270e-005	0.000000e+000	0.000000e+000	0.000000e+000
+		    // 1 7.244192e-003	1.164305e-001	2.868147e+001
 			
 			String columns[] = line.split("\\s+");
-			if (columns.length < 14)
+			if (columns.length < 4)
 				return;
 			
 			long camid = Long.parseLong(columns[0].trim());
@@ -82,51 +81,11 @@ public class InteriorOrientationFlatFileReader extends SourceFileReader<Camera> 
 			double x0 = Double.parseDouble(columns[col++].trim());
 			double y0 = Double.parseDouble(columns[col++].trim());
 			double c  = Double.parseDouble(columns[col++].trim());
-
-			double A1 = Double.parseDouble(columns[col++].trim());
-			double A2 = Double.parseDouble(columns[col++].trim());
-			double A3 = Double.parseDouble(columns[col++].trim());
-
-			double B1 = Double.parseDouble(columns[col++].trim());
-			double B2 = Double.parseDouble(columns[col++].trim());
-			double B3 = Double.parseDouble(columns[col++].trim());
-			double B4 = Double.parseDouble(columns[col++].trim());
-
-			double C1 = Double.parseDouble(columns[col++].trim());
-			double C2 = Double.parseDouble(columns[col++].trim());
 			
-			double D1 = Double.parseDouble(columns[col++].trim());
-			double D2 = Double.parseDouble(columns[col++].trim());
-			double D3 = Double.parseDouble(columns[col++].trim());
-
-			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
-			interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X).setValue(x0);
-			interiorOrientation.get(ParameterType.PRINCIPAL_POINT_Y).setValue(y0);
-			interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE).setValue(c);
-
-			interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A1).setValue(A1);
-			interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A2).setValue(A2);
-			interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).setValue(A3);
-			interiorOrientation.get(ParameterType.RADIAL_DISTORTION_A3).setColumn(Integer.MAX_VALUE);
-
-			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B1).setValue(B1);
-			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B2).setValue(B2);
-			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).setValue(B3);
-			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B3).setColumn(Integer.MAX_VALUE);
-			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).setValue(B4);
-			interiorOrientation.get(ParameterType.TANGENTIAL_DISTORTION_B4).setColumn(Integer.MAX_VALUE);
-
-			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).setValue(C1);
-			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C1).setColumn(Integer.MAX_VALUE);
-			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).setValue(C2);
-			interiorOrientation.get(ParameterType.AFFINITY_AND_SHEAR_C2).setColumn(Integer.MAX_VALUE);
-			
-			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).setValue(D1);
-			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D1).setColumn(Integer.MAX_VALUE);
-			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).setValue(D2);
-			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D2).setColumn(Integer.MAX_VALUE);
-			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).setValue(D3);
-			interiorOrientation.get(ParameterType.DISTANCE_DISTORTION_D3).setColumn(Integer.MAX_VALUE);
+			InteriorOrientation interiorOrientation = this.camera.getInteriorOrientation();
+			interiorOrientation.getPrinciplePointX().setValue(x0);
+			interiorOrientation.getPrinciplePointY().setValue(y0);
+			interiorOrientation.getPrincipleDistance().setValue(c);
 		}
 		catch (Exception err) {
 			err.printStackTrace();

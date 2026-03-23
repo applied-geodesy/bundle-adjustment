@@ -19,19 +19,29 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.util.io.writer;
+package org.applied_geodesy.adjustment.bundle.derivation;
 
-import java.io.IOException;
+import no.uib.cipr.matrix.Matrix;
+import no.uib.cipr.matrix.Vector;
 
-import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
-
-public interface AdjustmentResultWritable {
-
-	/**
-	 * Exports specific results of the bundle adjustment
-	 * @param bundleAdjustment
-	 * @throws NullPointerException
-	 * @throws IOException
-	 */
-	public void export(BundleAdjustment bundleAdjustment) throws NullPointerException, IllegalArgumentException, IOException;
+public class GaussMarkovEquations {
+	private final Matrix A, P;
+	private final Vector w;
+	GaussMarkovEquations(Matrix A, Matrix P, Vector w) {
+		this.A = A;
+		this.P = P;
+		this.w = w;
+	}
+	
+	public Matrix getJacobian() {
+		return this.A;
+	}
+	
+	public Matrix getWeights() {
+		return this.P;
+	}
+	
+	public Vector getgetMisclosure() {
+		return this.w;
+	}
 }

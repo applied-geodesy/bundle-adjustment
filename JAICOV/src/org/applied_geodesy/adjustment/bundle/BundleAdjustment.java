@@ -36,8 +36,14 @@ import org.applied_geodesy.adjustment.EstimationStateType;
 import org.applied_geodesy.adjustment.EstimationType;
 import org.applied_geodesy.adjustment.MathExtension;
 import org.applied_geodesy.adjustment.NormalEquationSystem;
-import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
-import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.Image;
+import org.applied_geodesy.adjustment.bundle.camera.ImageCoordinate;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.ExteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.derivation.GaussMarkovEquations;
+import org.applied_geodesy.adjustment.bundle.derivation.PartialDerivativeFactory;
 import org.applied_geodesy.adjustment.bundle.parameter.DirectlyObservedParameterGroup;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
 import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameterGroup;
@@ -45,7 +51,7 @@ import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.adjustment.defect.DefectType;
 import org.applied_geodesy.adjustment.defect.RankDefect;
-import org.applied_geodesy.util.io.writer.AdjustmentResultWritable ;
+import org.applied_geodesy.util.io.writer.AdjustmentResultWritable;
 
 import no.uib.cipr.matrix.DenseVector;
 import no.uib.cipr.matrix.Matrix;
@@ -73,7 +79,8 @@ public class BundleAdjustment {
 			iterationStep                 = 0,
 			numberOfUnknownParameters     = 0,
 			numberOfObservations          = 0,
-			numberOfInteriorOrientationParameters = 0;
+			numberOfInteriorOrientations  = 0,
+			numberOfDistortionParameters  = 0;
 
 	private boolean interrupt                    = false,
 			applyAposterioriVarianceOfUnitWeight = true,
@@ -252,7 +259,7 @@ public class BundleAdjustment {
 						
 						// in-place solution of NES, i.e., N <-- Qxx, n <-- dx 
 						if (this.invertNormalEquationMatrix == MatrixInversion.REDUCED || this.invertNormalEquationMatrix == MatrixInversion.PRE_ELIMINATION) {
-							int numRows = this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 + this.rankDefect.getDefect();
+							int numRows = this.numberOfInteriorOrientations + this.numberOfDistortionParameters + this.objectCoordinates.size() * 3 + this.rankDefect.getDefect();
 							// reduced system of equations
 							this.reduceNormalEquationSystem(neq);
 							// in-place solution of NES, i.e., N <-- Qxx, n <-- dx 
@@ -274,7 +281,7 @@ public class BundleAdjustment {
 					else {
 						// Solve Nx = n in-place, i.e., n <-- dx
 						if (this.invertNormalEquationMatrix == MatrixInversion.PRE_ELIMINATION) {
-							int numRows = this.numberOfInteriorOrientationParameters + this.objectCoordinates.size() * 3 + this.rankDefect.getDefect();
+							int numRows = this.numberOfInteriorOrientations + this.numberOfDistortionParameters + this.objectCoordinates.size() * 3 + this.rankDefect.getDefect();
 							// reduced system of equations
 							this.reduceNormalEquationSystem(neq);
 							// in-place solution of NES, i.e., n <-- dx 
@@ -690,8 +697,18 @@ public class BundleAdjustment {
 			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 			for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
 				if (unknownParameter.getColumn() == -1)
-					this.numberOfInteriorOrientationParameters++;
+					this.numberOfInteriorOrientations++;
 				this.addUnknownParameter(unknownParameter);
+			}
+			
+			// add parameters of distortion models
+			Collection<DistortionModel> distortionModels = camera.getDistortionModels();
+			for (DistortionModel distortionModel : distortionModels) {
+				for (UnknownParameter<?> unknownParameter : distortionModel) {
+					if (unknownParameter.getColumn() == -1)
+						this.numberOfDistortionParameters++;
+					this.addUnknownParameter(unknownParameter);
+				}
 			}
 		}
 		
@@ -1185,18 +1202,27 @@ public class BundleAdjustment {
 	private void reduceNormalEquationSystem(NormalEquationSystem neq, Camera camera) throws IllegalArgumentException, MatrixSingularException {
 		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 		
-		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(interiorOrientation.getNumberOfParameters());
-		for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
+		List<UnknownParameter<?>> unknownInteriorOrientationAndDistortionParameters = new ArrayList<UnknownParameter<?>>();
+		for (UnknownParameter<?> unknownParameter : interiorOrientation) {
 			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
 				continue;
-			unknownInteriorOrientation.add(unknownParameter);
+			unknownInteriorOrientationAndDistortionParameters.add(unknownParameter);
+		}
+		
+		Collection<DistortionModel> distortionModels = camera.getDistortionModels();
+		for (DistortionModel distortionModel : distortionModels) {
+			for (UnknownParameter<?> unknownParameter : distortionModel) {
+				if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
+					continue;
+				unknownInteriorOrientationAndDistortionParameters.add(unknownParameter);
+			}
 		}
 
 		for (Image image : camera)
-			this.reduceNormalEquationSystem(neq, image, unknownInteriorOrientation);
+			this.reduceNormalEquationSystem(neq, image, unknownInteriorOrientationAndDistortionParameters);
 	}
 	
-	private void reduceNormalEquationSystem(NormalEquationSystem neq, Image image, List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation) throws IllegalArgumentException, MatrixSingularException {
+	private void reduceNormalEquationSystem(NormalEquationSystem neq, Image image, List<UnknownParameter<?>> unknownInteriorOrientationAndDistortionParameters) throws IllegalArgumentException, MatrixSingularException {
 		UpperSymmPackMatrix N = neq.getMatrix();
 		DenseVector n = neq.getVector();
 		
@@ -1272,7 +1298,7 @@ public class BundleAdjustment {
 		}
 		
 		List<UnknownParameter<?>> unknownParameters = new ArrayList<UnknownParameter<?>>();
-		unknownParameters.addAll(unknownInteriorOrientation);
+		unknownParameters.addAll(unknownInteriorOrientationAndDistortionParameters);
 		
 		for (ImageCoordinate imageCoordinate : image) {
 			ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
@@ -1323,18 +1349,27 @@ public class BundleAdjustment {
 	private void extractReducedParameters(NormalEquationSystem neq, Camera camera) {
 		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 		
-		List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation = new ArrayList<UnknownParameter<InteriorOrientation>>(interiorOrientation.getNumberOfParameters());
-		for (UnknownParameter<InteriorOrientation> unknownParameter : interiorOrientation) {
+		List<UnknownParameter<?>> unknownInteriorOrientationAndDistortionParameters = new ArrayList<UnknownParameter<?>>();
+		for (UnknownParameter<?> unknownParameter : interiorOrientation) {
 			if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
 				continue;
-			unknownInteriorOrientation.add(unknownParameter);
+			unknownInteriorOrientationAndDistortionParameters.add(unknownParameter);
+		}
+		
+		Collection<DistortionModel> distortionModels = camera.getDistortionModels();
+		for (DistortionModel distortionModel : distortionModels) {
+			for (UnknownParameter<?> unknownParameter : distortionModel) {
+				if (unknownParameter.getColumn() < 0 || unknownParameter.getColumn() == Integer.MAX_VALUE)
+					continue;
+				unknownInteriorOrientationAndDistortionParameters.add(unknownParameter);
+			}
 		}
 
 		for (Image image : camera)
-			this.extractReducedParameters(neq, image, unknownInteriorOrientation);
+			this.extractReducedParameters(neq, image, unknownInteriorOrientationAndDistortionParameters);
 	}
 	
-	public void extractReducedParameters(NormalEquationSystem neq, Image image, List<UnknownParameter<InteriorOrientation>> unknownInteriorOrientation) {
+	public void extractReducedParameters(NormalEquationSystem neq, Image image, List<UnknownParameter<?>> unknownInteriorOrientationAndDistortionParameters) {
 		UpperSymmPackMatrix N = neq.getMatrix();
 		DenseVector n = neq.getVector();
 		
@@ -1363,7 +1398,7 @@ public class BundleAdjustment {
 		}
 		
 		List<UnknownParameter<?>> unknownParameters = new ArrayList<UnknownParameter<?>>();
-		unknownParameters.addAll(unknownInteriorOrientation);
+		unknownParameters.addAll(unknownInteriorOrientationAndDistortionParameters);
 		
 		for (ImageCoordinate imageCoordinate : image) {
 			ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();

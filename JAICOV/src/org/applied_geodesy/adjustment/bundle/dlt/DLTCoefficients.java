@@ -25,8 +25,8 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.applied_geodesy.adjustment.bundle.Image;
 import org.applied_geodesy.adjustment.bundle.Referenceable;
+import org.applied_geodesy.adjustment.bundle.camera.Image;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 

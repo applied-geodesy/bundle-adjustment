@@ -19,13 +19,15 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.adjustment.bundle;
+package org.applied_geodesy.adjustment.bundle.camera;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.applied_geodesy.adjustment.bundle.orientation.ExteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
+import org.applied_geodesy.adjustment.bundle.Referenceable;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.ExteriorOrientation;
 
 public class Image implements Referenceable<Camera>, Iterable<ImageCoordinate> {
 	private final long id;

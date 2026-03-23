@@ -28,15 +28,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.applied_geodesy.adjustment.bundle.Camera;
-import org.applied_geodesy.adjustment.bundle.Image;
-import org.applied_geodesy.adjustment.bundle.ImageCoordinate;
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.Image;
+import org.applied_geodesy.adjustment.bundle.camera.ImageCoordinate;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
 import org.applied_geodesy.adjustment.Constant;
 import org.applied_geodesy.adjustment.DefaultValue;
 import org.applied_geodesy.adjustment.MathExtension;
 import org.applied_geodesy.adjustment.NormalEquationSystem;
-import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
@@ -305,9 +305,9 @@ public class DirectLinearTransformation {
 		Camera camera = image.getReference();
 		InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 		UnknownParameter<?> interiorOrientationParam[] = new UnknownParameter<?>[] {
-			interiorOrientation.get(ParameterType.PRINCIPAL_DISTANCE),
-			interiorOrientation.get(ParameterType.PRINCIPAL_POINT_X),
-			interiorOrientation.get(ParameterType.PRINCIPAL_POINT_Y)
+			interiorOrientation.getPrincipleDistance(),
+			interiorOrientation.getPrinciplePointX(),
+			interiorOrientation.getPrinciplePointY()
 		};
 		
 		for (UnknownParameter<?> unknownParameter : interiorOrientationParam) {

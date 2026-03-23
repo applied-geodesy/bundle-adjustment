@@ -1,23 +1,23 @@
 /***********************************************************************
- * Copyright by Michael Loesler, https://software.applied-geodesy.org   *
- *                                                                      *
- * This program is free software; you can redistribute it and/or modify *
- * it under the terms of the GNU General Public License as published by *
- * the Free Software Foundation; either version 3 of the License, or    *
- * at your option any later version.                                    *
- *                                                                      *
- * This program is distributed in the hope that it will be useful,      *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
- * GNU General Public License for more details.                         *
- *                                                                      *
- * You should have received a copy of the GNU General Public License    *
- * along with this program; if not, see <http://www.gnu.org/licenses/>  *
- * or write to the                                                      *
- * Free Software Foundation, Inc.,                                      *
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.            *
- *                                                                      *
- ***********************************************************************/
+* Copyright by Michael Loesler, https://software.applied-geodesy.org   *
+*                                                                      *
+* This program is free software; you can redistribute it and/or modify *
+* it under the terms of the GNU General Public License as published by *
+* the Free Software Foundation; either version 3 of the License, or    *
+* at your option any later version.                                    *
+*                                                                      *
+* This program is distributed in the hope that it will be useful,      *
+* but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+* GNU General Public License for more details.                         *
+*                                                                      *
+* You should have received a copy of the GNU General Public License    *
+* along with this program; if not, see <http://www.gnu.org/licenses/>  *
+* or write to the                                                      *
+* Free Software Foundation, Inc.,                                      *
+* 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.            *
+*                                                                      *
+***********************************************************************/
 
 package org.applied_geodesy.util.io.writer;
 
@@ -28,9 +28,11 @@ import java.util.Collection;
 import java.util.List;
 
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
-import org.applied_geodesy.adjustment.bundle.Camera;
 import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
-import org.applied_geodesy.adjustment.bundle.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
+import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
 import no.uib.cipr.matrix.UpperSymmPackMatrix;
@@ -73,15 +75,21 @@ public class MatlabResultWriter extends BundleAdjustmentResultWriter {
 		double sigma2apost = bundleAdjustment.getVarianceFactorAposteriori();
 		
 		int numInteriorParams = 0;
+		int numDistortionParams = 0;
 		for (Camera camera : cameras) {
 			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
 			numInteriorParams += interiorOrientation.getNumberOfParameters();
+			
+			Collection<DistortionModel> distortionModels = camera.getDistortionModels();
+			for (DistortionModel distortionModel : distortionModels) 
+				numDistortionParams += distortionModel.getNumberOfParameters();
 		}
 
 		Struct coordinates          = Mat5.newStruct(1, objectCoordinates.size());
 		Struct interiorOrientations = Mat5.newStruct(1, numInteriorParams);
+		Struct distortionParameters = Mat5.newStruct(1, numDistortionParams);
 		
-		List<Integer> indices = exportDispersionMatrix ? new ArrayList<Integer>(objectCoordinates.size() * 3 + numInteriorParams) : null;
+		List<Integer> indices = exportDispersionMatrix ? new ArrayList<Integer>(objectCoordinates.size() * 3 + numInteriorParams + numDistortionParams) : null;
 
 		int structIndex = 0;
 		int columnIndex = 1;
@@ -135,12 +143,12 @@ public class MatlabResultWriter extends BundleAdjustmentResultWriter {
 		structIndex = 0;
 		for (Camera camera : cameras) {
 			InteriorOrientation interiorOrientation = camera.getInteriorOrientation();
-			for (UnknownParameter<InteriorOrientation> param : interiorOrientation) {
+			for (UnknownParameter<?> unknownParameter : interiorOrientation) {
 				interiorOrientations.set("cam_id", structIndex, newLong(camera.getId()));
-				interiorOrientations.set("name",   structIndex, Mat5.newString(param.getParameterType().name().toLowerCase()));
-				interiorOrientations.set("value",  structIndex, newDouble(param.getValue()));
+				interiorOrientations.set("name",   structIndex, Mat5.newString(unknownParameter.getParameterType().name().toLowerCase()));
+				interiorOrientations.set("value",  structIndex, newDouble(unknownParameter.getValue()));
 				if (exportDispersionMatrix) {
-					int column = param.getColumn();
+					int column = unknownParameter.getColumn();
 					
 					if (column >= 0 && column < cofactor.numColumns()) {
 						if (exportDispersionMatrix)
@@ -155,6 +163,35 @@ public class MatlabResultWriter extends BundleAdjustmentResultWriter {
 				structIndex++;
 			}
 		}
+		
+		structIndex = 0;
+		for (Camera camera : cameras) {
+			Collection<DistortionModel> distortionModels = camera.getDistortionModels();
+			for (DistortionModel model : distortionModels) {
+				for (UnknownParameter<?> unknownParameter : model) {
+					int order = (unknownParameter instanceof PolynomialCoefficient) ? ((PolynomialCoefficient<?>)unknownParameter).getOrder() : -1;
+					distortionParameters.set("cam_id", structIndex, newLong(camera.getId()));
+					distortionParameters.set("name",   structIndex, Mat5.newString(unknownParameter.getParameterType().name().toLowerCase()));
+					distortionParameters.set("value",  structIndex, newDouble(unknownParameter.getValue()));
+					distortionParameters.set("order",  structIndex, newInteger(order));
+					
+					if (exportDispersionMatrix) {
+						int column = unknownParameter.getColumn();
+						
+						if (column >= 0 && column < cofactor.numColumns()) {
+							if (exportDispersionMatrix)
+								indices.add(column);
+							column = columnIndex++;
+						}
+						else
+							column = -1;
+						
+						distortionParameters.set("cov", structIndex, newInteger(column));
+					}
+					structIndex++;
+				}
+			}
+		}
 	
 		
 		MatFile matFile = Mat5.newMatFile();
@@ -167,6 +204,7 @@ public class MatlabResultWriter extends BundleAdjustmentResultWriter {
 		
 		matFile.addArray("coordinates",           coordinates);
 		matFile.addArray("interior_orientations", interiorOrientations);
+		matFile.addArray("distortion_parameters", distortionParameters);
 		
 		if (exportDispersionMatrix) {
 			Matrix dispersion = Mat5.newMatrix(indices.size(), indices.size(), MatlabType.Double);

@@ -19,29 +19,34 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.adjustment.bundle;
+package org.applied_geodesy.adjustment.bundle.camera.distortion;
 
-import no.uib.cipr.matrix.Matrix;
-import no.uib.cipr.matrix.Vector;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
 
-public class GaussMarkovEquations {
-	private final Matrix A, P;
-	private final Vector w;
-	GaussMarkovEquations(Matrix A, Matrix P, Vector w) {
-		this.A = A;
-		this.P = P;
-		this.w = w;
+abstract class PolynomialDistortionModel extends DistortionModel {
+	private final double r0;
+	
+	PolynomialDistortionModel(Camera camera, double r0) {
+		super(camera);
+		this.r0 = r0;
 	}
 	
-	public Matrix getJacobian() {
-		return this.A;
+	public final double getR0() {
+		return this.r0;
 	}
 	
-	public Matrix getWeights() {
-		return this.P;
-	}
+	/**
+	 * Add polynomial coefficient to distortion model 
+	 * @param order
+	 * @return coefficient
+	 */
+	public abstract PolynomialCoefficient<?> add(int order);
 	
-	public Vector getgetMisclosure() {
-		return this.w;
-	}
+	/**
+	 * Returns the polynomial coefficient of the distortion model for the specified order  
+	 * @param order
+	 * @return coefficient
+	 */
+	public abstract PolynomialCoefficient<?> get(int order);
 }

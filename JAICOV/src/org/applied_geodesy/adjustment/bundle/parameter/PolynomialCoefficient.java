@@ -19,19 +19,21 @@
 *                                                                      *
 ***********************************************************************/
 
-package org.applied_geodesy.util.io.writer;
+package org.applied_geodesy.adjustment.bundle.parameter;
 
-import java.io.IOException;
+public class PolynomialCoefficient<T> extends UnknownParameter<T> {
+	private final int order;
+	public PolynomialCoefficient(ParameterType parameterType, T reference, int order) {
+		super(parameterType, reference);
+		this.order = order;
+	}
 
-import org.applied_geodesy.adjustment.bundle.BundleAdjustment;
+	public final int getOrder() {
+		return this.order;
+	}
 
-public interface AdjustmentResultWritable {
-
-	/**
-	 * Exports specific results of the bundle adjustment
-	 * @param bundleAdjustment
-	 * @throws NullPointerException
-	 * @throws IOException
-	 */
-	public void export(BundleAdjustment bundleAdjustment) throws NullPointerException, IllegalArgumentException, IOException;
+	@Override
+	public String toString() {
+		return super.toString() + ", [order=" + order + "]";
+	}
 }
