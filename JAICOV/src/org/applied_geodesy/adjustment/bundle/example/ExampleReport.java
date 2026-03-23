@@ -39,6 +39,7 @@ import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientat
 import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.util.io.reader.aicon.AICONReportFileReader;
+import org.applied_geodesy.util.io.writer.MatlabResultWriter;
 
 import no.uib.cipr.matrix.Matrix;
 
@@ -87,6 +88,8 @@ public class ExampleReport implements PropertyChangeListener {
 		adjustment.setEstimationType(EstimationType.L2NORM);
 		// Use NONE, if the dispersion matrix is not required
 		adjustment.setInvertNormalEquation(MatrixInversion.REDUCED);
+		// Export result to binary MATLAB-file
+		adjustment.setAdjustmentResultWriter(new MatlabResultWriter("adjustment_results"));
 		// Call estimate to start the bundle adjustment
 		EstimationStateType estimationStateType = adjustment.estimateModel();
 
