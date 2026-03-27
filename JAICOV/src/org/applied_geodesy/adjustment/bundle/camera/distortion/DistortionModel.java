@@ -27,10 +27,11 @@ import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
 public abstract class DistortionModel implements Modelable, Iterable<UnknownParameter<? extends DistortionModel>> {
 	public enum Type {
+		AFFINITY_AND_SHEAR,
+		TANGENTIAL_DISTORTION,
 		RADIAL_DISTORTION,
 		DISTANCE_DISTORTION,
-		TANGENTIAL_DISTORTION,
-		AFFINITY_AND_SHEAR;
+		ZERNIKE_POLYNOMIAL;
 	}
 	
 	private final Camera camera;

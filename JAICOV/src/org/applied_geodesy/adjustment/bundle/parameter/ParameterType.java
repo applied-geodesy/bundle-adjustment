@@ -48,6 +48,9 @@ public enum ParameterType {
 	/** Polynomkoeffizient der streckenabhaenigen Verzeichnung Di **/
 	DISTANCE_POLYNOMIAL_D(151),
 	
+	/** Polynomkoeffizient fuer Zernike-basierte Verzeichnung Zi **/
+	ZERNIKE_POLYNOMIAL_Z(161),
+	
 	/** Koordinate der Kamera X0 **/
 	CAMERA_COORDINATE_X(251),
 	/** Koordinate der Kamera Y0 **/

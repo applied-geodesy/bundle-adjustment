@@ -21,32 +21,53 @@
 
 package org.applied_geodesy.adjustment.bundle.camera.distortion;
 
-import org.applied_geodesy.adjustment.bundle.camera.Camera;
-import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-public abstract class PolynomialDistortionModel extends DistortionModel {
-	private final double r0;
+import org.applied_geodesy.adjustment.bundle.camera.Camera;
+import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
+import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
+import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
+
+public class ZernikeDistortionModel extends PolynomialDistortionModel {
+	private Map<Integer, UnknownParameter<? extends DistortionModel>> params = new LinkedHashMap<Integer, UnknownParameter<? extends DistortionModel>>(5);
 	
-	PolynomialDistortionModel(Camera camera, double r0) {
-		super(camera);
-		this.r0 = r0;
+	public ZernikeDistortionModel(Camera camera, double r0) {
+		super(camera, r0);
+	}
+
+	@Override
+	public int getNumberOfParameters() {
+		return this.params.size();
+	}
+
+	@Override
+	public PolynomialCoefficient<ZernikeDistortionModel> add(int order) {
+		if (order < 0)
+			throw new IllegalArgumentException("Error, polynomial coefficient order must be a real non-negative integer. " + order);
+
+		if (this.params.containsKey(order))
+			throw new IllegalArgumentException("Error, polynomial coefficient order already exists. " + order);
+
+		PolynomialCoefficient<ZernikeDistortionModel> coefficient = new PolynomialCoefficient<ZernikeDistortionModel>(ParameterType.ZERNIKE_POLYNOMIAL_Z, this, order);
+		this.params.put(order, coefficient);
+
+		return coefficient;
+	}
+
+	@Override
+	public PolynomialCoefficient<?> get(int order) {
+		return (PolynomialCoefficient<?>)this.params.get(order);
 	}
 	
-	public final double getR0() {
-		return this.r0;
+	@Override
+	public Iterator<UnknownParameter<? extends DistortionModel>> iterator() {
+		return this.params.values().iterator();
 	}
-	
-	/**
-	 * Add polynomial coefficient to distortion model 
-	 * @param order
-	 * @return coefficient
-	 */
-	public abstract PolynomialCoefficient<?> add(int order);
-	
-	/**
-	 * Returns the polynomial coefficient of the distortion model for the specified order  
-	 * @param order
-	 * @return coefficient
-	 */
-	public abstract PolynomialCoefficient<?> get(int order);
+
+	@Override
+	public Type getType() {
+		return Type.ZERNIKE_POLYNOMIAL; 
+	}
 }

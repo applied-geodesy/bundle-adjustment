@@ -33,6 +33,7 @@ import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.RadialDistanceDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.RadiallySymmetricDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.TangentialDistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.ZernikeDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
 
 public class Camera implements Iterable<Image> {
@@ -55,15 +56,18 @@ public class Camera implements Iterable<Image> {
 				case AFFINITY_AND_SHEAR:
 					models.put(type, new AffinityShearDistortionModel(this));
 					break;
-				case DISTANCE_DISTORTION:
-					models.put(type, new RadialDistanceDistortionModel(this, r0));
+				case TANGENTIAL_DISTORTION:
+					models.put(type, new TangentialDistortionModel(this));
 					break;
 				case RADIAL_DISTORTION:
 					models.put(type, new RadiallySymmetricDistortionModel(this, r0));
 					break;
-				case TANGENTIAL_DISTORTION:
-					models.put(type, new TangentialDistortionModel(this));
-					break;				
+				case DISTANCE_DISTORTION:
+					models.put(type, new RadialDistanceDistortionModel(this, r0));
+					break;
+				case ZERNIKE_POLYNOMIAL:
+					models.put(type, new ZernikeDistortionModel(this, r0));
+					break;
 				}
 			}
 			this.distortionModels = Collections.unmodifiableMap(models);
