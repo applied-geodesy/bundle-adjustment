@@ -21,18 +21,11 @@
 
 package org.applied_geodesy.adjustment.bundle.camera.distortion;
 
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import org.applied_geodesy.adjustment.bundle.camera.Camera;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
 import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
-import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
 public class RadiallySymmetricDistortionModel extends PolynomialDistortionModel {
-	private Map<Integer, UnknownParameter<? extends DistortionModel>> params = new LinkedHashMap<Integer, UnknownParameter<? extends DistortionModel>>(5);
-
 	public RadiallySymmetricDistortionModel(Camera camera, double r0) {
 		super(camera, r0);
 	}
@@ -45,34 +38,16 @@ public class RadiallySymmetricDistortionModel extends PolynomialDistortionModel 
 	 * @return coefficient
 	 */
 	@Override
-	public PolynomialCoefficient<RadiallySymmetricDistortionModel> add(int order) {
+	public PolynomialCoefficient<? extends DistortionModel> add(int order) {
 		if (order <= 0)
 			throw new IllegalArgumentException("Error, polynomial coefficient order must be a real positive integer. " + order);
 		
-		if (this.params.containsKey(order))
-			throw new IllegalArgumentException("Error, polynomial coefficient order already exists. " + order);
-			
 		PolynomialCoefficient<RadiallySymmetricDistortionModel> coefficient = new PolynomialCoefficient<RadiallySymmetricDistortionModel>(ParameterType.RADIAL_POLYNOMIAL_A, this, order);
-		this.params.put(order, coefficient);
+		super.add(order, coefficient);
 		
 		return coefficient;
 	}
 	
-	@Override
-	public PolynomialCoefficient<?> get(int order) {
-		return (PolynomialCoefficient<?>)this.params.get(order);
-	}
-	
-	@Override
-	public int getNumberOfParameters() {
-		return this.params.size();
-	}
-
-	@Override
-	public Iterator<UnknownParameter<? extends DistortionModel>> iterator() {
-		return this.params.values().iterator();
-	}
-
 	@Override
 	public Type getType() {
 		return Type.RADIAL_DISTORTION;
