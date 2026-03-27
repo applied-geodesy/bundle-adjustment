@@ -21,10 +21,16 @@
 
 package org.applied_geodesy.adjustment.bundle.camera.distortion;
 
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.applied_geodesy.adjustment.bundle.camera.Camera;
 import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
+import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 
 public abstract class PolynomialDistortionModel extends DistortionModel {
+	private Map<Integer, UnknownParameter<? extends DistortionModel>> params = new LinkedHashMap<Integer, UnknownParameter<? extends DistortionModel>>(10);
 	private final double r0;
 	
 	PolynomialDistortionModel(Camera camera, double r0) {
@@ -34,6 +40,13 @@ public abstract class PolynomialDistortionModel extends DistortionModel {
 	
 	public final double getR0() {
 		return this.r0;
+	}
+	
+	void add(int order, UnknownParameter<? extends DistortionModel> coefficient) {
+		if (this.params.containsKey(order))
+			throw new IllegalArgumentException("Error, polynomial coefficient order already exists. " + order);
+		
+		this.params.put(order, coefficient);
 	}
 	
 	/**
@@ -48,5 +61,17 @@ public abstract class PolynomialDistortionModel extends DistortionModel {
 	 * @param order
 	 * @return coefficient
 	 */
-	public abstract PolynomialCoefficient<?> get(int order);
+	public PolynomialCoefficient<?> get(int order) {
+		return (PolynomialCoefficient<?>)this.params.get(order);
+	}
+	
+	@Override
+	public int getNumberOfParameters() {
+		return this.params.size();
+	}
+
+	@Override
+	public Iterator<UnknownParameter<? extends DistortionModel>> iterator() {
+		return this.params.values().iterator();
+	}
 }
