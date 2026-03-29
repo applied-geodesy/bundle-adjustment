@@ -34,7 +34,7 @@ public class ZernikeCoefficient extends PolynomialCoefficient<ZernikeDistortionM
 		private final double length;
 
 		private ZernikePolynomial(int order) {
-			this(order, Boolean.FALSE);
+			this(order, Boolean.TRUE);
 		}
 
 		private ZernikePolynomial(int order, boolean normalise) {
@@ -176,5 +176,4 @@ public class ZernikeCoefficient extends PolynomialCoefficient<ZernikeDistortionM
 	public final ZernikePolynomial getZernikePolynomial() {
 		return this.zernikePolynomial;
 	}
-
 }

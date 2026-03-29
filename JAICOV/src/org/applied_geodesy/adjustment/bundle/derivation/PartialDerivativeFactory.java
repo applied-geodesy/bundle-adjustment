@@ -429,8 +429,14 @@ final public class PartialDerivativeFactory {
 			case TANGENTIAL_DISTORTION:
 				TangentialDistortionModelFactory.apply((TangentialDistortionModel)distortionModel, collinearityEquation, columns, A, w);
 				break;
-			case ZERNIKE_POLYNOMIAL:
-				ZernikeDistortionModelFactory.apply((ZernikeDistortionModel)distortionModel, collinearityEquation, columns, A, w);
+			case ZERNIKE_GRADIENT:
+				ZernikeDistortionModelFactory.apply((ZernikeDistortionModel.Gradient)distortionModel, collinearityEquation, columns, A, w);
+				break;
+			case ZERNIKE_X:
+				ZernikeDistortionModelFactory.apply((ZernikeDistortionModel.X)distortionModel, collinearityEquation, columns, A, w);
+				break;
+			case ZERNIKE_Y:
+				ZernikeDistortionModelFactory.apply((ZernikeDistortionModel.Y)distortionModel, collinearityEquation, columns, A, w);
 				break;
 			}
 		}

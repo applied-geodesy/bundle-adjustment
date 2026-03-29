@@ -65,8 +65,14 @@ public class Camera implements Iterable<Image> {
 				case DISTANCE_DISTORTION:
 					models.put(type, new RadialDistanceDistortionModel(this, r0));
 					break;
-				case ZERNIKE_POLYNOMIAL:
-					models.put(type, new ZernikeDistortionModel(this, r0));
+				case ZERNIKE_GRADIENT:
+					models.put(type, new ZernikeDistortionModel.Gradient(this, r0));
+					break;
+				case ZERNIKE_X:
+					models.put(type, new ZernikeDistortionModel.X(this, r0));
+					break;
+				case ZERNIKE_Y:
+					models.put(type, new ZernikeDistortionModel.Y(this, r0));
 					break;
 				}
 			}

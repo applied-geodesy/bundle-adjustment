@@ -23,11 +23,9 @@ package org.applied_geodesy.adjustment.bundle.example;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Random;
 
 import org.applied_geodesy.adjustment.EstimationStateType;
 import org.applied_geodesy.adjustment.EstimationType;
@@ -36,14 +34,10 @@ import org.applied_geodesy.adjustment.bundle.ObjectCoordinate;
 import org.applied_geodesy.adjustment.bundle.ScaleBar;
 import org.applied_geodesy.adjustment.bundle.BundleAdjustment.MatrixInversion;
 import org.applied_geodesy.adjustment.bundle.camera.Camera;
-import org.applied_geodesy.adjustment.bundle.camera.Image;
-import org.applied_geodesy.adjustment.bundle.camera.ImageCoordinate;
-import org.applied_geodesy.adjustment.bundle.camera.distortion.AffinityShearDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.RadiallySymmetricDistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.ZernikeDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
-import org.applied_geodesy.adjustment.bundle.parameter.DirectlyObservedParameterGroup;
-import org.applied_geodesy.adjustment.bundle.parameter.ObservationParameter;
 import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
 import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
 import org.applied_geodesy.util.io.reader.aicon.EORFileReader;
@@ -52,18 +46,15 @@ import org.applied_geodesy.util.io.reader.aicon.OBCFileReader;
 import org.applied_geodesy.util.io.reader.aicon.PHCFileReader;
 import org.applied_geodesy.util.io.reader.aicon.ScaleFileReader;
 
-import no.uib.cipr.matrix.DenseMatrix;
 import no.uib.cipr.matrix.Matrix;
-import no.uib.cipr.matrix.MatrixEntry;
-import no.uib.cipr.matrix.UpperSPDPackMatrix;
 
-public class ExampleFlatFiles implements PropertyChangeListener {
+public class ExampleDistortionModel implements PropertyChangeListener {
 
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
 		System.out.println("Info: " + evt.getPropertyName() + " " +evt.getOldValue() + " --> " + evt.getNewValue());
 	}
-
+	
 	public static void main(String[] args) throws Exception {
 		// Prevent warning of (missing) native implementation
 		System.setProperty("com.github.fommil.netlib.BLAS",   "com.github.fommil.netlib.F2jBLAS");
@@ -83,16 +74,28 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 		Collection<ScaleBar> scaleBars = scaleReader.readAndImport();
 		
 		// Read interior orientation and create camera object
-		IORFileReader iorReader = new IORFileReader(basepath + ".ior");
+		IORFileReader iorReader = new IORFileReader(basepath + ".ior", DistortionModel.Type.ZERNIKE_GRADIENT, DistortionModel.Type.ZERNIKE_X, DistortionModel.Type.ZERNIKE_Y);
 		Camera camera = iorReader.readAndImport();
 		
-		// Fixing some interior orientation parameters
-		DistortionModel distortionModel = camera.getDistortionModel(DistortionModel.Type.RADIAL_DISTORTION);
-		((RadiallySymmetricDistortionModel)distortionModel).get(3).setColumn(Integer.MAX_VALUE);
+		// fixing interior camera parameters such as principle distance because of correlations with specific Zernike polynomial e.g. c and Z(4)
+		camera.getInteriorOrientation().getPrincipleDistance().setValue(28);
+		camera.getInteriorOrientation().getPrincipleDistance().setColumn(Integer.MAX_VALUE);	
+
+		// fixing parameters of standard distortion models to apply Zernike approach
+		RadiallySymmetricDistortionModel radiallySymmetricDistortionModel = (RadiallySymmetricDistortionModel)camera.getDistortionModel(DistortionModel.Type.RADIAL_DISTORTION);
+		for (UnknownParameter<?> distortionParameter : radiallySymmetricDistortionModel) {
+			distortionParameter.setValue(0);
+			distortionParameter.setColumn(Integer.MAX_VALUE);
+		}
 		
-		distortionModel = camera.getDistortionModel(DistortionModel.Type.AFFINITY_AND_SHEAR);
-		((AffinityShearDistortionModel)distortionModel).getCx().setColumn(Integer.MAX_VALUE);
-		((AffinityShearDistortionModel)distortionModel).getCy().setColumn(Integer.MAX_VALUE);
+		// specify Zernike polynomials
+		ZernikeDistortionModel.Gradient zernikeDistortion = (ZernikeDistortionModel.Gradient)camera.getDistortionModel(DistortionModel.Type.ZERNIKE_GRADIENT);
+		
+		// apply radially symmetric distortions only
+		for (int i = 1, order = 0; i < 6; i++) {
+			order += i*4;
+			zernikeDistortion.add(order);
+		}	
 		
 		// Read taken images and exterior orientation parameters of images
 		EORFileReader eorReader = new EORFileReader(basepath + ".eor", camera);
@@ -101,53 +104,7 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 		// Read image coordinates and add to camera
 		PHCFileReader phcReader = new PHCFileReader(basepath + ".phc", camera, coordinates);
 		phcReader.readAndImport();
-		
-		// Specify the points, which are used to define the frame datum using a random stochastic model
-		// !!! This step is not mandatory, just for demonstrations !!!
-		ArrayList<ObservationParameter<? extends UnknownParameter<?>>> observedCoordinates = new ArrayList<ObservationParameter<? extends UnknownParameter<?>>>();
-		// Random stochastic model
-		Random random = new Random();
-		double sigma0 = 0.001;
-		for (Image image : camera) {
-			// Call the images taken from this camera object
-			// and extract the image coordinates
-			for (ImageCoordinate imageCoordinate : image) {
-				// Select corresponding object coordinates
-				ObjectCoordinate objectCoordinate = imageCoordinate.getObjectCoordinate();
-				if (objectCoordinate.getName().length() > 3)
-					objectCoordinate.setDatum(Boolean.FALSE);
 				
-				if (objectCoordinate.isDatum()) {
-					objectCoordinate.setDatum(Boolean.FALSE);
-					
-					ObservationParameter<UnknownParameter<ObjectCoordinate>> obsX = new ObservationParameter<UnknownParameter<ObjectCoordinate>>(objectCoordinate.getX());
-					ObservationParameter<UnknownParameter<ObjectCoordinate>> obsY = new ObservationParameter<UnknownParameter<ObjectCoordinate>>(objectCoordinate.getY());
-					ObservationParameter<UnknownParameter<ObjectCoordinate>> obsZ = new ObservationParameter<UnknownParameter<ObjectCoordinate>>(objectCoordinate.getZ());
-					
-					// If only variances (or standard deviations) are known, simply add the corresponding values directly to the observations to save memory
-					// obsX.setVariance(Math.pow(random.nextGaussian(0, sigma0), 2));
-					// obsY.setVariance(Math.pow(random.nextGaussian(0, sigma0), 2));
-					// obsZ.setVariance(Math.pow(random.nextGaussian(0, sigma0), 2));
-					
-					observedCoordinates.add(obsX);
-					observedCoordinates.add(obsY);
-					observedCoordinates.add(obsZ);
-				}
-			}
-		}
-
-		// Create a fully populated dispersion matrix D = U'*U
-		int size = observedCoordinates.size();
-		DenseMatrix U = new DenseMatrix(size, size);
-		for (MatrixEntry element : U) 
-			element.set(random.nextGaussian(0, sigma0));
-
-		DenseMatrix V = new DenseMatrix(U, Boolean.TRUE);
-		UpperSPDPackMatrix dispersion = new UpperSPDPackMatrix(size);
-		U.transAmult(V, dispersion);
-		DirectlyObservedParameterGroup observedObjectCoordinate = new DirectlyObservedParameterGroup(dispersion, observedCoordinates);	
-		
-		
 		// Create an adjustment object
 		BundleAdjustment adjustment = new BundleAdjustment();
 		// Add camera(s) and images to adjustment object
@@ -155,12 +112,9 @@ public class ExampleFlatFiles implements PropertyChangeListener {
 		// Add scale bar(s) to adjustment object
 		for (ScaleBar scaleBar : scaleBars)
 			adjustment.add(scaleBar);
-		// Add observed coordinates to adjustment object
-		adjustment.add(observedObjectCoordinate);
-		
 		
 		// Add a listener to get notifications of the adjustment process (not required)
-		adjustment.addPropertyChangeListener(new ExampleFlatFiles());
+		adjustment.addPropertyChangeListener(new ExampleDistortionModel());
 		// Select the estimation type, e.g., L2Norm or Simulation
 		adjustment.setEstimationType(EstimationType.L2NORM);
 		// Use NONE, if the dispersion matrix is not required

@@ -21,53 +21,63 @@
 
 package org.applied_geodesy.adjustment.bundle.camera.distortion;
 
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import org.applied_geodesy.adjustment.bundle.camera.Camera;
 import org.applied_geodesy.adjustment.bundle.parameter.ParameterType;
-import org.applied_geodesy.adjustment.bundle.parameter.PolynomialCoefficient;
-import org.applied_geodesy.adjustment.bundle.parameter.UnknownParameter;
+import org.applied_geodesy.adjustment.bundle.parameter.ZernikeCoefficient;
 
-public class ZernikeDistortionModel extends PolynomialDistortionModel {
-	private Map<Integer, UnknownParameter<? extends DistortionModel>> params = new LinkedHashMap<Integer, UnknownParameter<? extends DistortionModel>>(5);
+public abstract class ZernikeDistortionModel extends PolynomialDistortionModel {
 	
-	public ZernikeDistortionModel(Camera camera, double r0) {
+	public static class X extends ZernikeDistortionModel {
+		public X(Camera camera, double r0) {
+			super(camera, r0, Type.ZERNIKE_X);
+		}
+		
+		@Override
+		public ZernikeCoefficient add(int order) {
+			return this.add(order, ParameterType.ZERNIKE_POLYNOMIAL_X);
+		}
+	}
+	
+	public static class Y extends ZernikeDistortionModel {
+		public Y(Camera camera, double r0) {
+			super(camera, r0, Type.ZERNIKE_Y);
+		}
+		
+		@Override
+		public ZernikeCoefficient add(int order) {
+			return this.add(order, ParameterType.ZERNIKE_POLYNOMIAL_Y);
+		}
+	}
+	
+	public static class Gradient extends ZernikeDistortionModel {
+		public Gradient(Camera camera, double r0) {
+			super(camera, r0, Type.ZERNIKE_GRADIENT);
+		}
+		
+		@Override
+		public ZernikeCoefficient add(int order) {
+			return this.add(order, ParameterType.ZERNIKE_POLYNOMIAL_Z);
+		}
+	}
+
+	private final Type type;
+	ZernikeDistortionModel(Camera camera, double r0, Type type) {
 		super(camera, r0);
+		this.type = type;
 	}
-
-	@Override
-	public int getNumberOfParameters() {
-		return this.params.size();
-	}
-
-	@Override
-	public PolynomialCoefficient<ZernikeDistortionModel> add(int order) {
-		if (order < 0)
-			throw new IllegalArgumentException("Error, polynomial coefficient order must be a real non-negative integer. " + order);
-
-		if (this.params.containsKey(order))
-			throw new IllegalArgumentException("Error, polynomial coefficient order already exists. " + order);
-
-		PolynomialCoefficient<ZernikeDistortionModel> coefficient = new PolynomialCoefficient<ZernikeDistortionModel>(ParameterType.ZERNIKE_POLYNOMIAL_Z, this, order);
-		this.params.put(order, coefficient);
+	
+	ZernikeCoefficient add(int order, ParameterType parameterType) {
+		if (order <= 0)
+			throw new IllegalArgumentException("Error, polynomial coefficient order must be a real positive integer. " + order);
+		
+		ZernikeCoefficient coefficient = new ZernikeCoefficient(parameterType, this, order);
+		super.add(order, coefficient);
 
 		return coefficient;
 	}
-
-	@Override
-	public PolynomialCoefficient<?> get(int order) {
-		return (PolynomialCoefficient<?>)this.params.get(order);
-	}
 	
 	@Override
-	public Iterator<UnknownParameter<? extends DistortionModel>> iterator() {
-		return this.params.values().iterator();
-	}
-
-	@Override
-	public Type getType() {
-		return Type.ZERNIKE_POLYNOMIAL; 
+	public final Type getType() {
+		return this.type; 
 	}
 }

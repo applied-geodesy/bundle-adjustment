@@ -31,7 +31,9 @@ public abstract class DistortionModel implements Modelable, Iterable<UnknownPara
 		TANGENTIAL_DISTORTION,
 		RADIAL_DISTORTION,
 		DISTANCE_DISTORTION,
-		ZERNIKE_POLYNOMIAL;
+		ZERNIKE_X,
+		ZERNIKE_Y,
+		ZERNIKE_GRADIENT;
 	}
 	
 	private final Camera camera;
