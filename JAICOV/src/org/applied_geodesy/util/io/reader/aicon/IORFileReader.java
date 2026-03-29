@@ -25,6 +25,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import org.applied_geodesy.adjustment.bundle.camera.Camera;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.AffinityShearDistortionModel;
@@ -37,6 +40,8 @@ import org.applied_geodesy.util.io.reader.SourceFileReader;
 
 public class IORFileReader extends SourceFileReader<Camera> {
 	private Camera camera = null;
+	private final static DistortionModel.Type TYPES[] = new DistortionModel.Type[]{DistortionModel.Type.RADIAL_DISTORTION, DistortionModel.Type.TANGENTIAL_DISTORTION, DistortionModel.Type.AFFINITY_AND_SHEAR};
+	private final DistortionModel.Type distortionTypes[];
 	private InteriorOrientation interiorOrientation;
 	private int lineCounter = 0;
 	private final int[] LINE_LENGHTS = new int[] {8, 1, 2, 2, 4};
@@ -50,7 +55,25 @@ public class IORFileReader extends SourceFileReader<Camera> {
 	}
 	
 	public IORFileReader(Path path) {
+		this(path, TYPES);
+	}
+	
+	public IORFileReader(String fileName, DistortionModel.Type... types) {
+		this(new File(fileName).toPath(), types);
+	}
+
+	public IORFileReader(File sf, DistortionModel.Type... types) {
+		this(sf.toPath(), types);
+	}
+	
+	public IORFileReader(Path path, DistortionModel.Type... types) {
 		super(path);
+		
+		Set<DistortionModel.Type> uniqueModels = new LinkedHashSet<DistortionModel.Type>();
+		Collections.addAll(uniqueModels, TYPES);
+		Collections.addAll(uniqueModels, types);
+		this.distortionTypes = uniqueModels.toArray(new DistortionModel.Type[uniqueModels.size()]);
+		
 		this.reset();
 	}
 	
@@ -115,7 +138,7 @@ public class IORFileReader extends SourceFileReader<Camera> {
 				
 				double r0 = Double.parseDouble(columns[7].trim());
 				
-				this.camera = new Camera(camid, r0, DistortionModel.Type.RADIAL_DISTORTION, DistortionModel.Type.TANGENTIAL_DISTORTION, DistortionModel.Type.AFFINITY_AND_SHEAR);
+				this.camera = new Camera(camid, r0, this.distortionTypes);
 				this.interiorOrientation = camera.getInteriorOrientation();
 				
 				this.interiorOrientation.getPrincipleDistance().setValue(-c);

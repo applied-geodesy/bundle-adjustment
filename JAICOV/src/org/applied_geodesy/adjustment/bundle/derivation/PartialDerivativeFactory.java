@@ -38,6 +38,7 @@ import org.applied_geodesy.adjustment.bundle.camera.distortion.DistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.RadialDistanceDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.RadiallySymmetricDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.distortion.TangentialDistortionModel;
+import org.applied_geodesy.adjustment.bundle.camera.distortion.ZernikeDistortionModel;
 import org.applied_geodesy.adjustment.bundle.camera.orientation.ExteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.camera.orientation.InteriorOrientation;
 import org.applied_geodesy.adjustment.bundle.parameter.DirectlyObservedParameterGroup;
@@ -412,7 +413,7 @@ final public class PartialDerivativeFactory {
 			A.set(1, column, collinearityEquation.par_ys_kappa);
 		}
 		
-		// apply dispersion model modifications
+		// apply distortion model modifications
 		Collection<DistortionModel> distortionModels = camera.getDistortionModels();
 		for (DistortionModel distortionModel : distortionModels) {
 			switch (distortionModel.getType()) {
@@ -427,7 +428,16 @@ final public class PartialDerivativeFactory {
 				break;
 			case TANGENTIAL_DISTORTION:
 				TangentialDistortionModelFactory.apply((TangentialDistortionModel)distortionModel, collinearityEquation, columns, A, w);
-				break;	
+				break;
+			case ZERNIKE_GRADIENT:
+				ZernikeDistortionModelFactory.apply((ZernikeDistortionModel.Gradient)distortionModel, collinearityEquation, columns, A, w);
+				break;
+			case ZERNIKE_X:
+				ZernikeDistortionModelFactory.apply((ZernikeDistortionModel.X)distortionModel, collinearityEquation, columns, A, w);
+				break;
+			case ZERNIKE_Y:
+				ZernikeDistortionModelFactory.apply((ZernikeDistortionModel.Y)distortionModel, collinearityEquation, columns, A, w);
+				break;
 			}
 		}
 		

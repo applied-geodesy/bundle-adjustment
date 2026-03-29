@@ -21,7 +21,9 @@
 
 package org.applied_geodesy.adjustment.bundle.parameter;
 
-public class PolynomialCoefficient<T> extends UnknownParameter<T> {
+import org.applied_geodesy.adjustment.bundle.camera.distortion.PolynomialDistortionModel;
+
+public class PolynomialCoefficient<T extends PolynomialDistortionModel> extends UnknownParameter<T> {
 	private final int order;
 	public PolynomialCoefficient(ParameterType parameterType, T reference, int order) {
 		super(parameterType, reference);
