@@ -39,6 +39,7 @@ point cloud. For such specific applications, this tiny bundle adjustment library
   + Tangential distortion `Bx`, `By` with symmetric polynomial coefficients `Bi` (`i=1...n`)
   + Affinity and shear `Cx`, `Cy`
   + Distance-dependent distortion with polynomial coefficients `Di` (`i=1...n`)
+  + Approaches based on Zernike polynomials (experimental)
 - Consideration of correlation between planar coordinate components of observed image point
 - Consideration of fully populated dispersion matrix of directly observed parameters, e.g. observed coordinates of object points
 - Fully populated dispersion matrix of parameters to be estimated
