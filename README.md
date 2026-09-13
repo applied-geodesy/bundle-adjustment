@@ -4,9 +4,12 @@
 
 Photogrammetry is a technique to obtain spatial coordinates of observed objects by analysing planar coordinates from taken images. 
 The collinearity equations yield the functional relation between the planar image coordinates, i.e., the observations, and the spatial 
-coordinates, i.e., the parameters to be estimated. 
+coordinates, i.e., the parameters to be estimated as shown in the figure below. 
 If the number of observations exceeds the number of required observations to estimate the unknown parameters uniquely, 
 usually a least-squares adjustment is performed. 
+
+<img src="/.images/bundle_adjustment_principle.png" width="65%" alt="Principle of Bundle Adjustment utilizing the Collinearity Equations" title="Principle of Bundle Adjustment" />
+
 
 ## Bundle Adjustment
 In most photogrammetric applications, a bundle adjustment solves the 
@@ -22,7 +25,8 @@ obtain reliable and almost unbiased test statistics. The following figure depict
 `X`, `Y`, `Z` derived from four different stochastic models, i.e. identity matrix, diagonal matrix, block-diagonal matrix, fully populated matrix.
 The study shows that the uncertainties become too optimistic, if stochastic dependencies are neglected. 
 
-![Comparison of resulting uncertainties of coordinate components X, Y, Z derived from four different stochastic models, i.e. identity matrix, diagonal matrix, block-diagonal matrix, fully populated matrix](/.images/bundle_adjustment_impact_of_dispersion_matrix.png?raw=true "Impact of dispersion matrix on derived quantities")
+<img src="/.images/bundle_adjustment_impact_of_dispersion_matrix.png" width="65%" alt="Comparison of resulting uncertainties of coordinate components X, Y, Z derived from four different stochastic models, i.e. identity matrix, diagonal matrix, block-diagonal matrix, fully populated matrixs" title="Impact of dispersion matrix on derived quantities" />
+
 
 ## Metrology and Close-Range Photogrammetry
 In the field of metrology and close-range photogrammetry, usually marked points or special targets are used for precise measurements. 
